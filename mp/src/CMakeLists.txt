@@ -136,7 +136,7 @@ if(OS_WINDOWS)
     set(LIBPUBLIC "${CMAKE_SOURCE_DIR}/lib/public")
     set(LIBCOMMON "${CMAKE_SOURCE_DIR}/lib/common")
 
-    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "EditAndContinue")
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "Embedded")
 
     # Disable exceptions
     string(REGEX REPLACE "/EH[a-z]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

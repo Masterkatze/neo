@@ -78,7 +78,7 @@ jobs:
         -DNEO_CI_BUILD=ON
         -DNEO_USE_CCACHE=OFF
         -DNEO_COPY_LIBRARIES=OFF
-        -DNEO_USE_SEPARATE_BUILD_INFO=ON
+        -DNEO_USE_SEPARATE_BUILD_INFO=OFF
         -DNEO_INSTALL_LIBRARIES=ON
         -DNEO_INSTALL_RESOURCES=OFF
 
@@ -111,9 +111,7 @@ jobs:
       working-directory: ${{ env.install_dir }}
       run: |
         echo "libraries=$(find . -regex '\.\/neo-\w*-\w*-libraries-\w*-\w*' -printf '%f')" >> "$GITHUB_ENV"
-        echo "libraries_debuginfo=$(find . -regex '\.\/neo-\w*-\w*-libraries-debuginfo-\w*-\w*' -printf '%f')" >> "$GITHUB_ENV"
         echo "dedicated=$(find . -regex '\.\/neo-\w*-\w*-dedicated-\w*-\w*' -printf '%f')" >> "$GITHUB_ENV"
-        echo "dedicated_debuginfo=$(find . -regex '\.\/neo-\w*-\w*-dedicated-debuginfo-\w*-\w*' -printf '%f')" >> "$GITHUB_ENV"
 
     - name: Upload libraries
       uses: actions/upload-artifact@v4
@@ -121,23 +119,11 @@ jobs:
         name: ${{ env.libraries }}
         path: ${{ env.install_dir }}/${{ env.libraries }}
 
-    - name: Upload libraries debug information
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.libraries_debuginfo }}
-        path: ${{ env.install_dir }}/${{ env.libraries_debuginfo }}
-
     - name: Upload dedicated library
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.dedicated }}
         path: ${{ env.install_dir }}/${{ env.dedicated }}
-
-    - name: Upload dedicated library debug information
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.dedicated_debuginfo }}
-        path: ${{ env.install_dir }}/${{ env.dedicated_debuginfo }}
 
   pack-resources:
     name: Windows Native Resources
