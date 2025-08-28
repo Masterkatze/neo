@@ -662,7 +662,14 @@ void CHL2MPPlayerAnimState::ComputePoseParam_MoveYaw( CStudioHdr *pStudioHdr )
 	EstimateYaw();
 
 #if 1 // 9way
-	ConVarRef mp_slammoveyaw("mp_slammoveyaw");
+	bool SlamMoveYawSet;
+	static bool isSlamMoveYawSet = false;
+	if ( !isSlamMoveYawSet )
+	{
+		ConVarRef mp_slammoveyaw("mp_slammoveyaw");
+		SlamMoveYawSet = mp_slammoveyaw.GetBool();
+		isSlamMoveYawSet = true;
+	}
 
 	// Get the view yaw.
 	float flAngle = AngleNormalize( m_flEyeYaw );
@@ -679,7 +686,7 @@ void CHL2MPPlayerAnimState::ComputePoseParam_MoveYaw( CStudioHdr *pStudioHdr )
 	Vector2D vecCurrentMoveYaw( 0.0f, 0.0f );
 	if ( bIsMoving )
 	{
-		if ( mp_slammoveyaw.GetBool() )
+		if ( SlamMoveYawSet )
 			flYaw = SnapYawTo( flYaw );
 
 		vecCurrentMoveYaw.x = cos( DEG2RAD( flYaw ) ) * flPlaybackRate;
