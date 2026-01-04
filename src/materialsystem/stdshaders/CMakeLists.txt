@@ -77,12 +77,18 @@ target_sources_grouped(
     NAME "Source Files"
     FILES
     BaseVSShader.cpp
-    Bloom.cpp
     example_model_dx9.cpp
     example_model_dx9_helper.cpp
     lightmappedgeneric_dx9.cpp
     lightmappedgeneric_dx9_helper.cpp
     screenspace_general.cpp
+
+    DebugDrawEnvmapMask.cpp
+    debugdepth.cpp
+    debugluxel.cpp
+    debugnormalmap.cpp
+    fillrate.cpp
+    eyeball.cpp
 )
 
 if(OS_LINUX)
