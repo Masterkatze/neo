@@ -8,7 +8,7 @@
 #include "BaseVSShader.h"
 #include "Neo_refract_dx9_helper.h"
 #include "convar.h"
-#include "neo_Refract_vs20.inc"
+#include "neo_refract_vs20.inc"
 #include "neo_refract_ps20.inc"
 #include "neo_refract_ps20b.inc"
 #include "cpp_shader_constant_register_map.h"

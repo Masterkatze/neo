@@ -30,7 +30,7 @@ struct PS_INPUT
 // This is the main entry point to our pixel shader. We'll
 // return the color red as an output.
 // ------------------------------------------------------------
-float4 main( PS_INPUT i ) : COLOR
+float4 main( PS_INPUT i ) : SV_Target
 {
 	return float4(1.0f, 0.0f, 0.0f, 1.0f);
 }

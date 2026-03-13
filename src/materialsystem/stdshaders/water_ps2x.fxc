@@ -25,21 +25,26 @@
 #include "water_ps2x_helper.h"
 
 
-sampler RefractSampler			: register( s0 );
+Texture2D RefractSampler			: register( t0 );
+SamplerState RefractSampler_s		: register( s0 );
 #if BASETEXTURE
-sampler BaseTextureSampler		: register( s1 );
+Texture2D BaseTextureSampler		: register( t1 );
+SamplerState BaseTextureSampler_s	: register( s1 );
 #endif
-sampler ReflectSampler			: register( s2 );
+Texture2D ReflectSampler			: register( t2 );
+SamplerState ReflectSampler_s		: register( s2 );
 #if BASETEXTURE
-sampler LightmapSampler			: register( s3 );
+Texture2D LightmapSampler			: register( t3 );
+SamplerState LightmapSampler_s		: register( s3 );
 #endif
-sampler NormalSampler			: register( s4 );
+Texture2D NormalSampler				: register( t4 );
+SamplerState NormalSampler_s		: register( s4 );
 
-const HALF4 vRefractTint			: register( c1 );
-const HALF4 vReflectTint			: register( c4 );
+const float4 vRefractTint			: register( c1 );
+const float4 vReflectTint			: register( c4 );
 const float4 g_ReflectRefractScale	: register( c5 ); // xy - reflect scale, zw - refract scale
-const HALF4 g_WaterFogColor			: register( c6 );
-const HALF4 g_WaterFogParams		: register( c7 );
+const float4 g_WaterFogColor			: register( c6 );
+const float4 g_WaterFogParams		: register( c7 );
 
 const float4 g_PixelFogParams		: register( c8 );
 
@@ -62,15 +67,15 @@ struct PS_INPUT
 #endif
 #if BASETEXTURE
 // CENTROID: TEXCOORD6
-	HALF4 lightmapTexCoord1And2		: TEXCOORD6;
+	float4 lightmapTexCoord1And2		: TEXCOORD6;
 // CENTROID: TEXCOORD7
-	HALF4 lightmapTexCoord3			: TEXCOORD7;
+	float4 lightmapTexCoord3			: TEXCOORD7;
 #endif
 
 	float4 fogFactorW				: COLOR1;
 };
 
-float4 main( PS_INPUT i ) : COLOR
+float4 main( PS_INPUT i ) : SV_Target
 {
 	DrawWater_params_t params;
 
@@ -99,13 +104,13 @@ float4 main( PS_INPUT i ) : COLOR
 
 	float4 result;
 	float fogFactor;
-	DrawWater( params, 
+	DrawWater( params,
 			   // yay. . can't put sampler in a struct.
 #if BASETEXTURE
-			   BaseTextureSampler, 
-			   LightmapSampler, 
+			   BaseTextureSampler, BaseTextureSampler_s,
+			   LightmapSampler, LightmapSampler_s,
 #endif
-			   NormalSampler, RefractSampler, ReflectSampler,
+			   NormalSampler, NormalSampler_s, RefractSampler, RefractSampler_s, ReflectSampler, ReflectSampler_s,
 			   result, fogFactor );
 
 	return FinalOutput( float4( result.rgb, 1.0f ), fogFactor, PIXELFOGTYPE, TONEMAP_SCALE_NONE, (WRITE_DEPTH_TO_DESTALPHA != 0), i.vProjPos.z );

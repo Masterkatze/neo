@@ -1,4 +1,4 @@
-//====== Copyright � 1996-2007, Valve Corporation, All rights reserved. ===========================
+//====== Copyright © 1996-2007, Valve Corporation, All rights reserved. ===========================
 
 // STATIC: "FLASHLIGHT"					"0..1"
 // STATIC: "LIGHTWARPTEXTURE"			"0..1"
@@ -44,15 +44,23 @@
 #include "shader_constant_register_map.h"
 
 // Texture Samplers ===============================================================================
-sampler g_tCorneaSampler				: register( s0 );
-sampler g_tIrisSampler					: register( s1 );
-sampler g_tEyeReflectionCubemapSampler	: register( s2 );
-sampler g_tEyeAmbientOcclSampler		: register( s3 );
-sampler g_tLightwarpSampler				: register( s4 ); // 1D texture for TF NPR lighting
+Texture2D g_tCorneaSampler				: register( t0 );
+SamplerState g_tCorneaSampler_s			: register( s0 );
+Texture2D g_tIrisSampler				: register( t1 );
+SamplerState g_tIrisSampler_s			: register( s1 );
+TextureCube g_tEyeReflectionCubemapSampler	: register( t2 );
+SamplerState g_tEyeReflectionCubemapSampler_s	: register( s2 );
+Texture2D g_tEyeAmbientOcclSampler		: register( t3 );
+SamplerState g_tEyeAmbientOcclSampler_s	: register( s3 );
+Texture2D g_tLightwarpSampler			: register( t4 ); // 1D texture for TF NPR lighting
+SamplerState g_tLightwarpSampler_s		: register( s4 );
 
-sampler g_tFlashlightCookieSampler		: register( s5 );
-sampler g_tFlashlightDepthSampler		: register( s6 );
-sampler g_tRandomRotationSampler		: register( s7 );
+Texture2D g_tFlashlightCookieSampler	: register( t5 );
+SamplerState g_tFlashlightCookieSampler_s	: register( s5 );
+Texture2D g_tFlashlightDepthSampler		: register( t6 );
+SamplerState g_tFlashlightDepthSampler_s	: register( s6 );
+Texture2D g_tRandomRotationSampler		: register( t7 );
+SamplerState g_tRandomRotationSampler_s	: register( s7 );
 
 // Shaders Constants and Globals ==================================================================
 const float4 g_vPackedConst0			: register( c0 );
@@ -107,7 +115,7 @@ float IntersectRaySphere ( float3 cameraPos, float3 ray, float3 sphereCenter, fl
 }
 
 // Main ===========================================================================================
-float4 main( PS_INPUT i ) : COLOR
+float4 main( PS_INPUT i ) : SV_Target
 {
 	// Set bools to compile out code
 	bool bFlashlight = ( FLASHLIGHT != 0 ) ? true : false;
@@ -154,25 +162,25 @@ float4 main( PS_INPUT i ) : COLOR
 		{
 			if ( nNumLights > 0 )
 			{
-				float3 cWarpedLight = 2.0f * tex1D( g_tLightwarpSampler, i.vLightFalloffCosine01.z ).rgb;
+				float3 cWarpedLight = 2.0f * g_tLightwarpSampler.Sample(g_tLightwarpSampler_s, float2(i.vLightFalloffCosine01.z, 0)).rgb;
 				i.cVertexLight.rgb += i.vLightFalloffCosine01.x * PixelShaderGetLightColor( g_sLightInfo, 0 ) * cWarpedLight.rgb;
 			}
 
 			if ( nNumLights > 1 )
 			{
-				float3 cWarpedLight = 2.0f * tex1D( g_tLightwarpSampler, i.vLightFalloffCosine01.w ).rgb;
+				float3 cWarpedLight = 2.0f * g_tLightwarpSampler.Sample(g_tLightwarpSampler_s, float2(i.vLightFalloffCosine01.w, 0)).rgb;
 				i.cVertexLight.rgb += i.vLightFalloffCosine01.y * PixelShaderGetLightColor( g_sLightInfo, 1 ) * cWarpedLight.rgb;
 			}
 
 			if ( nNumLights > 2 )
 			{
-				float3 cWarpedLight = 2.0f * tex1D( g_tLightwarpSampler, i.vLightFalloffCosine23.z ).rgb;
+				float3 cWarpedLight = 2.0f * g_tLightwarpSampler.Sample(g_tLightwarpSampler_s, float2(i.vLightFalloffCosine23.z, 0)).rgb;
 				i.cVertexLight.rgb += i.vLightFalloffCosine23.x * PixelShaderGetLightColor( g_sLightInfo, 2 ) * cWarpedLight.rgb;
 			}
 
 			if ( nNumLights > 3 )
 			{
-				float3 cWarpedLight = 2.0f * tex1D( g_tLightwarpSampler, i.vLightFalloffCosine23.w ).rgb;
+				float3 cWarpedLight = 2.0f * g_tLightwarpSampler.Sample(g_tLightwarpSampler_s, float2(i.vLightFalloffCosine23.w, 0)).rgb;
 				i.cVertexLight.rgb += i.vLightFalloffCosine23.y * PixelShaderGetLightColor( g_sLightInfo, 3 ) * cWarpedLight.rgb;
 			}
 		}
@@ -211,7 +219,7 @@ float4 main( PS_INPUT i ) : COLOR
 	//=================================//
 	// Hacked parallax mapping on iris //
 	//=================================//
-	float fIrisOffset = tex2D( g_tCorneaSampler, vCorneaUv.xy ).b;
+	float fIrisOffset = g_tCorneaSampler.Sample(g_tCorneaSampler_s, vCorneaUv.xy).b;
 
 #if !defined( SHADER_MODEL_PS_2_0 )
 	float2 vParallaxVector = ( ( vTangentViewVector.xy * fIrisOffset * g_flParallaxStrength ) / ( 1.0f - vTangentViewVector.z ) ); // Note: 0.25 is a magic number
@@ -226,14 +234,14 @@ float4 main( PS_INPUT i ) : COLOR
 
 	// Note: We fetch from this texture twice right now with different uv's for the color and alpha
 	float2 vCorneaNoiseUv = vSphereUv.xy + ( vParallaxVector.xy * 0.5 );
-	float fCorneaNoise = tex2D( g_tIrisSampler, vCorneaNoiseUv.xy ).a;
+	float fCorneaNoise = g_tIrisSampler.Sample(g_tIrisSampler_s, vCorneaNoiseUv.xy).a;
 
 	//===============//
 	// Cornea normal //
 	//===============//
 	// Sample 2D normal from texture
 	float3 vCorneaTangentNormal = { 0.0, 0.0, 1.0 };
-	float4 vCorneaSample = tex2D( g_tCorneaSampler, vCorneaUv.xy );
+	float4 vCorneaSample = g_tCorneaSampler.Sample(g_tCorneaSampler_s, vCorneaUv.xy);
 	vCorneaTangentNormal.xy = vCorneaSample.rg - 0.5f; // Note: This scales the bump to 50% strength
 
 	// Scale strength of normal
@@ -270,15 +278,15 @@ float4 main( PS_INPUT i ) : COLOR
 		// Flashlight cookie
 #if !defined( SHADER_MODEL_PS_2_0 )
 		float3 vProjCoords = vFlashlightTexCoord.xyz / vFlashlightTexCoord.w;
-		float3 cFlashlightCookieColor = tex2D( g_tFlashlightCookieSampler, vProjCoords );
-#else 
-		float3 cFlashlightCookieColor = tex2Dproj( g_tFlashlightCookieSampler, vFlashlightTexCoord.xyzw );
+		float3 cFlashlightCookieColor = g_tFlashlightCookieSampler.Sample(g_tFlashlightCookieSampler_s, vProjCoords);
+#else
+		float3 cFlashlightCookieColor = g_tFlashlightCookieSampler.Sample(g_tFlashlightCookieSampler_s, vFlashlightTexCoord.xy / vFlashlightTexCoord.w);
 #endif
 
 		// Shadow depth map
 #if FLASHLIGHTSHADOWS && !defined( SHADER_MODEL_PS_2_0 )
 		int nShadowLevel = FLASHLIGHTDEPTHFILTERMODE;
-		float flShadow = DoFlashlightShadow( g_tFlashlightDepthSampler, g_tRandomRotationSampler, vProjCoords, float2(0,0), nShadowLevel, g_vShadowTweaks, false );
+		float flShadow = DoFlashlightShadow( g_tFlashlightDepthSampler, g_tFlashlightDepthSampler_s, g_tRandomRotationSampler, g_tRandomRotationSampler_s, vProjCoords, float2(0,0), nShadowLevel, g_vShadowTweaks, false );
 		float flAttenuated = lerp( flShadow, 1.0f, g_vShadowTweaks.y );		// Blend between fully attenuated and not attenuated
 		flShadow = lerp( flAttenuated, flShadow, flFlashlightAttenuation ); // Blend between shadow and above, according to light attenuation
 		cFlashlightCookieColor *= flShadow; // Apply shadow term to cookie color
@@ -314,7 +322,7 @@ float4 main( PS_INPUT i ) : COLOR
 	//============//
 	// Iris color //
 	//============//
-	float4 cIrisColor = tex2D( g_tIrisSampler, vIrisUv.xy );
+	float4 cIrisColor = g_tIrisSampler.Sample(g_tIrisSampler_s, vIrisUv.xy);
 
 	//==========================//
 	// Iris lighting highlights //
@@ -323,7 +331,7 @@ float4 main( PS_INPUT i ) : COLOR
 
 #if !defined( SHADER_MODEL_PS_2_0 )
 	// Mask off everything but the iris pixels
-	float fIrisHighlightMask = tex2D( g_tCorneaSampler, vCorneaUv.xy ).a;
+	float fIrisHighlightMask = g_tCorneaSampler.Sample(g_tCorneaSampler_s, vCorneaUv.xy).a;
 
 	// Generate the normal
 	float3 vIrisTangentNormal = vCorneaTangentNormal.xyz;
@@ -383,7 +391,7 @@ float4 main( PS_INPUT i ) : COLOR
 	//===================//
 	// Ambient occlusion //
 	//===================//
-	float3 cAmbientOcclFromTexture = tex2D( g_tEyeAmbientOcclSampler, i.vAmbientOcclUv_fallbackCorneaUv.xy ).rgb;
+	float3 cAmbientOcclFromTexture = g_tEyeAmbientOcclSampler.Sample(g_tEyeAmbientOcclSampler_s, i.vAmbientOcclUv_fallbackCorneaUv.xy).rgb;
 	float3 cAmbientOcclColor = lerp( g_cAmbientOcclColor, 1.0f, cAmbientOcclFromTexture.rgb ); // Color the ambient occlusion
 	i.cVertexLight.rgb *= cAmbientOcclColor.rgb;
 
@@ -393,7 +401,7 @@ float4 main( PS_INPUT i ) : COLOR
 	float3 vCorneaReflectionVector = reflect ( vWorldViewVector.xyz, vCorneaWorldNormal.xyz );
 
 	//float3 cReflection = ENV_MAP_SCALE * texCUBE( g_tEyeReflectionCubemapSampler, vCorneaReflectionVector.xyz ).rgb;
-	float3 cReflection = g_flGlossiness * texCUBE( g_tEyeReflectionCubemapSampler, vCorneaReflectionVector.xyz ).rgb;
+	float3 cReflection = g_flGlossiness * g_tEyeReflectionCubemapSampler.Sample(g_tEyeReflectionCubemapSampler_s, vCorneaReflectionVector.xyz).rgb;
 
 	// Hack: Only add in half of the env map for the flashlight pass. This looks reasonable.
 	if ( bFlashlight )

@@ -1,4 +1,4 @@
-//======= Copyright � 1996-2008, Valve Corporation, All rights reserved. ======
+//======= Copyright © 1996-2008, Valve Corporation, All rights reserved. ======
 
 // STATIC: "CUBEMAP"					"0..1"
 // STATIC: "DIFFUSELIGHTING"			"0..1"
@@ -96,16 +96,26 @@ const float4 g_FlashlightAttenuationFactors	: register( c22 );
 const float3 g_FlashlightPos				: register( c23 );
 const float4x4 g_FlashlightWorldToTexture	: register( c24 ); // through c27
 
-sampler BaseTextureSampler					: register( s0 );
-sampler EnvmapSampler						: register( s1 );
-sampler DetailSampler						: register( s2 );
-sampler BumpmapSampler						: register( s3 );
-sampler EnvmapMaskSampler					: register( s4 );
-sampler NormalizeSampler					: register( s5 );
-sampler RandRotSampler						: register( s6 );	// RandomRotation sampler
-sampler FlashlightSampler					: register( s7 );
-sampler ShadowDepthSampler					: register( s8 );	// Flashlight shadow depth map sampler
-sampler DiffuseWarpSampler					: register( s9 );	// Lighting warp sampler (1D texture for diffuse lighting modification)
+Texture2D BaseTextureSampler				: register( t0 );
+SamplerState BaseTextureSampler_s			: register( s0 );
+TextureCube EnvmapSampler					: register( t1 );
+SamplerState EnvmapSampler_s				: register( s1 );
+Texture2D DetailSampler						: register( t2 );
+SamplerState DetailSampler_s				: register( s2 );
+Texture2D BumpmapSampler					: register( t3 );
+SamplerState BumpmapSampler_s				: register( s3 );
+Texture2D EnvmapMaskSampler					: register( t4 );
+SamplerState EnvmapMaskSampler_s			: register( s4 );
+TextureCube NormalizeSampler				: register( t5 );
+SamplerState NormalizeSampler_s				: register( s5 );
+Texture2D RandRotSampler					: register( t6 );	// RandomRotation sampler
+SamplerState RandRotSampler_s				: register( s6 );
+Texture2D FlashlightSampler					: register( t7 );
+SamplerState FlashlightSampler_s			: register( s7 );
+Texture2D ShadowDepthSampler				: register( t8 );	// Flashlight shadow depth map sampler
+SamplerState ShadowDepthSampler_s			: register( s8 );
+Texture2D DiffuseWarpSampler				: register( t9 );	// Lighting warp sampler (1D texture for diffuse lighting modification)
+SamplerState DiffuseWarpSampler_s			: register( s9 );
 
 struct PS_INPUT
 {
@@ -130,7 +140,7 @@ struct PS_INPUT
 #endif
 };
 
-float4 main( PS_INPUT i ) : COLOR
+float4 main( PS_INPUT i ) : SV_Target
 {
 	bool bCubemap = CUBEMAP ? true : false;
 	bool bDiffuseLighting = DIFFUSELIGHTING ? true : false;
@@ -155,15 +165,15 @@ float4 main( PS_INPUT i ) : COLOR
 	float4 vLightAtten = float4( i.lightAtten, i.detailTexCoord_atten3.z );
 
 	float4 baseColor = float4( 1.0f, 1.0f, 1.0f, 1.0f );
-	baseColor = tex2D( BaseTextureSampler, i.baseTexCoord2_tangentSpaceVertToEyeVectorXY.xy );
+	baseColor = BaseTextureSampler.Sample( BaseTextureSampler_s, i.baseTexCoord2_tangentSpaceVertToEyeVectorXY.xy );
 
 #if DETAILTEXTURE
-	float4 detailColor = tex2D( DetailSampler, i.detailTexCoord_atten3.xy );
+	float4 detailColor = DetailSampler.Sample( DetailSampler_s, i.detailTexCoord_atten3.xy );
 	baseColor = TextureCombine( baseColor, detailColor, DETAIL_BLEND_MODE, g_DetailBlendFactor );
 #endif
 
 	float specularFactor = 1.0f;
-	float4 normalTexel = tex2D( BumpmapSampler, i.baseTexCoord2_tangentSpaceVertToEyeVectorXY.xy );
+	float4 normalTexel = BumpmapSampler.Sample( BumpmapSampler_s, i.baseTexCoord2_tangentSpaceVertToEyeVectorXY.xy );
 	float3 tangentSpaceNormal = normalTexel * 2.0f - 1.0f;
 
 	if ( bNormalMapAlphaEnvmapMask )
@@ -178,7 +188,7 @@ float4 main( PS_INPUT i ) : COLOR
 #if ( defined(SHADER_MODEL_PS_2_B) || defined(SHADER_MODEL_PS_3_0) )
 		worldSpaceNormal = normalize( worldSpaceNormal );
 #else
-		worldSpaceNormal = NormalizeWithCubemap( NormalizeSampler, worldSpaceNormal );
+		worldSpaceNormal = NormalizeWithCubemap( NormalizeSampler, NormalizeSampler_s, worldSpaceNormal );
 #endif
 	}
 
@@ -186,8 +196,8 @@ float4 main( PS_INPUT i ) : COLOR
 	{
 		diffuseLighting = PixelShaderDoLighting( i.worldPos_projPosZ.xyz, worldSpaceNormal,
 				float3( 0.0f, 0.0f, 0.0f ), false, bAmbientLight, vLightAtten,
-				cAmbientCube, NormalizeSampler, nNumLights, cLightInfo, bHalfLambert,
-				false, 1.0f, bDoDiffuseWarp, DiffuseWarpSampler );
+				cAmbientCube, NormalizeSampler, NormalizeSampler_s, nNumLights, cLightInfo, bHalfLambert,
+				false, 1.0f, bDoDiffuseWarp, DiffuseWarpSampler, DiffuseWarpSampler_s );
 	}
 
 	float3 albedo = baseColor;
@@ -229,9 +239,9 @@ float4 main( PS_INPUT i ) : COLOR
 #endif
 
 		float3 flashlightColor = DoFlashlight( g_FlashlightPos, i.worldPos_projPosZ.xyz, flashlightSpacePosition,
-			worldSpaceNormal, g_FlashlightAttenuationFactors.xyz, 
-			g_FlashlightAttenuationFactors.w, FlashlightSampler, ShadowDepthSampler,
-			RandRotSampler, nShadowSampleLevel, bDoShadows, false, vProjPos, false, g_EnvmapContrast_ShadowTweaks );
+			worldSpaceNormal, g_FlashlightAttenuationFactors.xyz,
+			g_FlashlightAttenuationFactors.w, FlashlightSampler, FlashlightSampler_s, ShadowDepthSampler, ShadowDepthSampler_s,
+			RandRotSampler, RandRotSampler_s, nShadowSampleLevel, bDoShadows, false, vProjPos, false, g_EnvmapContrast_ShadowTweaks );
 
 #if defined ( _X360 )
 		diffuseLighting += flashlightColor;
@@ -277,7 +287,7 @@ float4 main( PS_INPUT i ) : COLOR
 	{
 		float3 reflectVect = CalcReflectionVectorUnnormalized( worldSpaceNormal, i.worldVertToEyeVectorXYZ_tangentSpaceVertToEyeVectorZ.xyz );
 
-		specularLighting = ENV_MAP_SCALE * texCUBE( EnvmapSampler, reflectVect );
+		specularLighting = ENV_MAP_SCALE * EnvmapSampler.Sample( EnvmapSampler_s, reflectVect );
 		specularLighting *= specularFactor;
 		specularLighting *= g_EnvmapTint_TintReplaceFactor.rgb;
 		float3 specularLightingSquared = specularLighting * specularLighting;

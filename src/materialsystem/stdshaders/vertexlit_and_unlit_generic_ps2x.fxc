@@ -1,4 +1,4 @@
-//====== Copyright � 1996-2007, Valve Corporation, All rights reserved. =======//
+//====== Copyright © 1996-2007, Valve Corporation, All rights reserved. =======//
 //
 //=============================================================================//
 // STATIC: "DETAILTEXTURE"				"0..1"
@@ -79,7 +79,7 @@
 
 #include "common_flashlight_fxc.h"
 #include "common_vertexlitgeneric_dx9.h"
- 
+
 const float4 g_EnvmapTint_TintReplaceFactor		: register( c0 );
 const float4 g_DiffuseModulation				: register( c1 );
 const float4 g_EnvmapContrast_ShadowTweaks		: register( c2 );
@@ -98,32 +98,42 @@ const float4 g_FogParams						: register( c21 );
 #define g_SelfIllumMaskControl		g_EnvmapSaturation_SelfIllumMask.w
 
 const float4 g_FlashlightAttenuationFactors	    : register( c22 );
-const HALF3 g_FlashlightPos						: register( c23 );
+const float3 g_FlashlightPos					: register( c23 );
 const float4x4 g_FlashlightWorldToTexture		: register( c24 ); // through c27
 
 
-sampler BaseTextureSampler		: register( s0 );
-sampler EnvmapSampler			: register( s1 );
-sampler DetailSampler			: register( s2 );
-sampler EnvmapMaskSampler		: register( s4 );
-sampler RandRotSampler			: register( s6 );	// RandomRotation sampler
-sampler FlashlightSampler		: register( s7 );
-sampler ShadowDepthSampler		: register( s8 );	// Flashlight shadow depth map sampler
-sampler DepthSampler			: register( s10 );	//depth buffer sampler for depth blending
-sampler SelfIllumMaskSampler	: register( s11 );	// selfillummask
-sampler LightMapSampler			: register( s12 );
+Texture2D BaseTextureSampler		: register( t0 );
+SamplerState BaseTextureSampler_s	: register( s0 );
+TextureCube EnvmapSampler			: register( t1 );
+SamplerState EnvmapSampler_s		: register( s1 );
+Texture2D DetailSampler				: register( t2 );
+SamplerState DetailSampler_s		: register( s2 );
+Texture2D EnvmapMaskSampler			: register( t4 );
+SamplerState EnvmapMaskSampler_s	: register( s4 );
+Texture2D RandRotSampler			: register( t6 );	// RandomRotation sampler
+SamplerState RandRotSampler_s		: register( s6 );
+Texture2D FlashlightSampler			: register( t7 );
+SamplerState FlashlightSampler_s	: register( s7 );
+Texture2D ShadowDepthSampler		: register( t8 );	// Flashlight shadow depth map sampler
+SamplerState ShadowDepthSampler_s	: register( s8 );
+Texture2D DepthSampler				: register( t10 );	//depth buffer sampler for depth blending
+SamplerState DepthSampler_s			: register( s10 );
+Texture2D SelfIllumMaskSampler		: register( t11 );	// selfillummask
+SamplerState SelfIllumMaskSampler_s	: register( s11 );
+Texture2D LightMapSampler			: register( t12 );
+SamplerState LightMapSampler_s		: register( s12 );
 
 struct PS_INPUT
 {
 #if SEAMLESS_BASE
-	HALF3 baseTexCoord				: TEXCOORD0;	// Base texture coordinate
+	float3 baseTexCoord				: TEXCOORD0;	// Base texture coordinate
 #else
-	HALF2 baseTexCoord				: TEXCOORD0;	// Base texture coordinate
+	float2 baseTexCoord				: TEXCOORD0;	// Base texture coordinate
 #endif
 #if SEAMLESS_DETAIL
-	HALF3 detailTexCoord			: TEXCOORD1;	// Seamless texture coordinate
+	float3 detailTexCoord			: TEXCOORD1;	// Seamless texture coordinate
 #else
-	HALF2 detailTexCoord			: TEXCOORD1;	// Detail texture coordinate
+	float2 detailTexCoord			: TEXCOORD1;	// Detail texture coordinate
 #endif
 	float4 color					: TEXCOORD2;	// Vertex color (from lighting or unlit)
 	float3 worldVertToEyeVector		: TEXCOORD3;	// Necessary for reflection
@@ -222,9 +232,9 @@ float4 FinalOutputConst( const float4 vShaderColor, float pixelFogFactor, float 
 
 
 #if LIGHTING_PREVIEW == 2
-LPREVIEW_PS_OUT main( PS_INPUT i ) : COLOR
+LPREVIEW_PS_OUT main( PS_INPUT i ) : SV_Target
 #else
-float4 main( PS_INPUT i ) : COLOR
+float4 main( PS_INPUT i ) : SV_Target
 #endif
 {
 	bool bDetailTexture = DETAILTEXTURE ? true : false;
@@ -238,14 +248,14 @@ float4 main( PS_INPUT i ) : COLOR
 	bool bFlashlight = FLASHLIGHT ? true : false;
 	bool bBlendTintByBaseAlpha = BLENDTINTBYBASEALPHA ? true : false;
 
-	HALF4 baseColor = HALF4( 1.0f, 1.0f, 1.0f, 1.0f );
+	float4 baseColor = float4( 1.0f, 1.0f, 1.0f, 1.0f );
 #if SEAMLESS_BASE
 	baseColor =
-		i.SeamlessWeights.x * tex2D( BaseTextureSampler, i.baseTexCoord.yz )+
-		i.SeamlessWeights.y * tex2D( BaseTextureSampler, i.baseTexCoord.zx )+
-		i.SeamlessWeights.z * tex2D( BaseTextureSampler, i.baseTexCoord.xy );
+		i.SeamlessWeights.x * BaseTextureSampler.Sample( BaseTextureSampler_s, i.baseTexCoord.yz )+
+		i.SeamlessWeights.y * BaseTextureSampler.Sample( BaseTextureSampler_s, i.baseTexCoord.zx )+
+		i.SeamlessWeights.z * BaseTextureSampler.Sample( BaseTextureSampler_s, i.baseTexCoord.xy );
 #else
-	baseColor = tex2D( BaseTextureSampler, i.baseTexCoord.xy );
+	baseColor = BaseTextureSampler.Sample( BaseTextureSampler_s, i.baseTexCoord.xy );
 
 #if SRGB_INPUT_ADAPTER
 	baseColor.rgb = GammaToLinear( baseColor.rgb );
@@ -261,12 +271,12 @@ float4 main( PS_INPUT i ) : COLOR
 
 #if DETAILTEXTURE
 #if SEAMLESS_DETAIL
-	float4 detailColor = 
-			i.SeamlessWeights.x * tex2D( DetailSampler, i.detailTexCoord.yz )+
-			i.SeamlessWeights.y * tex2D( DetailSampler, i.detailTexCoord.zx )+
-			i.SeamlessWeights.z * tex2D( DetailSampler, i.detailTexCoord.xy );
+	float4 detailColor =
+			i.SeamlessWeights.x * DetailSampler.Sample( DetailSampler_s, i.detailTexCoord.yz )+
+			i.SeamlessWeights.y * DetailSampler.Sample( DetailSampler_s, i.detailTexCoord.zx )+
+			i.SeamlessWeights.z * DetailSampler.Sample( DetailSampler_s, i.detailTexCoord.xy );
 #else
-	float4 detailColor = tex2D( DetailSampler, i.detailTexCoord.xy );
+	float4 detailColor = DetailSampler.Sample( DetailSampler_s, i.detailTexCoord.xy );
 #endif
 	detailColor.rgb *= g_DetailTint;
 
@@ -274,7 +284,7 @@ float4 main( PS_INPUT i ) : COLOR
 	float distAlphaMask = detailColor.a;
 	detailColor.a = 1.0;									// make tcombine treat as 1.0
 #endif
-	baseColor = 
+	baseColor =
 		TextureCombine( baseColor, detailColor, DETAIL_BLEND_MODE, g_DetailBlendFactor );
 #endif
 
@@ -313,14 +323,14 @@ float4 main( PS_INPUT i ) : COLOR
 		else
 			baseColor.a = mskUsed;
 	}
-	
+
 
 	if ( OUTER_GLOW )
 	{
 #if DISTANCEALPHAFROMDETAIL
-		float4 glowTexel = 	tex2D( DetailSampler, i.detailTexCoord.xy+GLOW_UV_OFFSET );
+		float4 glowTexel = 	DetailSampler.Sample( DetailSampler_s, i.detailTexCoord.xy+GLOW_UV_OFFSET );
 #else
-		float4 glowTexel = 	tex2D( BaseTextureSampler, i.baseTexCoord.xy+GLOW_UV_OFFSET );
+		float4 glowTexel = 	BaseTextureSampler.Sample( BaseTextureSampler_s, i.baseTexCoord.xy+GLOW_UV_OFFSET );
 #endif
 		float4 glowc = OUTER_GLOW_COLOR*smoothstep( OUTER_GLOW_MIN_DVALUE, OUTER_GLOW_MAX_DVALUE, glowTexel.a );
 		baseColor = lerp( glowc, baseColor, mskUsed );
@@ -332,8 +342,8 @@ float4 main( PS_INPUT i ) : COLOR
 	float4 envmapMaskTexel;
 	if( bEnvmapMask )
 	{
-		envmapMaskTexel = tex2D( EnvmapMaskSampler, i.baseTexCoord.xy );
-		specularFactor *= envmapMaskTexel.xyz;	
+		envmapMaskTexel = EnvmapMaskSampler.Sample( EnvmapMaskSampler_s, i.baseTexCoord.xy );
+		specularFactor *= envmapMaskTexel.xyz;
 	}
 
 	if( bBaseAlphaEnvmapMask )
@@ -354,7 +364,7 @@ float4 main( PS_INPUT i ) : COLOR
 	#if DEBUG_LUXELS
 		lightmapTexCoords.xy *= g_LuxelScale.xy;
 	#endif
-	float3 f3LightmapColor = GammaToLinear( 2.0f * tex2D( LightMapSampler, lightmapTexCoords ).rgb );
+	float3 f3LightmapColor = GammaToLinear( 2.0f * LightMapSampler.Sample( LightMapSampler_s, lightmapTexCoords ).rgb );
 	diffuseLighting = f3LightmapColor;
 #endif
 
@@ -400,9 +410,9 @@ float4 main( PS_INPUT i ) : COLOR
 	bUseWorldNormal = false;
 #endif
 		float3 flashlightColor = DoFlashlight( g_FlashlightPos, i.worldPos_projPosZ.xyz, flashlightSpacePosition,
-			i.worldSpaceNormal, g_FlashlightAttenuationFactors.xyz, 
-			g_FlashlightAttenuationFactors.w, FlashlightSampler, ShadowDepthSampler,
-			RandRotSampler, nShadowSampleLevel, bDoShadows, false, i.projPos.xy / i.projPos.w, false, g_EnvmapContrast_ShadowTweaks, bUseWorldNormal );
+			i.worldSpaceNormal, g_FlashlightAttenuationFactors.xyz,
+			g_FlashlightAttenuationFactors.w, FlashlightSampler, FlashlightSampler_s, ShadowDepthSampler, ShadowDepthSampler_s,
+			RandRotSampler, RandRotSampler_s, nShadowSampleLevel, bDoShadows, false, i.projPos.xy / i.projPos.w, false, g_EnvmapContrast_ShadowTweaks, bUseWorldNormal );
 
 #if defined ( _X360 )
 		diffuseLighting += flashlightColor;
@@ -421,24 +431,24 @@ float4 main( PS_INPUT i ) : COLOR
 	float3 diffuseComponent = albedo * diffuseLighting;
 
 #if DETAILTEXTURE
-	diffuseComponent = 
+	diffuseComponent =
 		TextureCombinePostLighting( diffuseComponent, detailColor, DETAIL_BLEND_MODE, g_DetailBlendFactor );
 #endif
 
-	HALF3 specularLighting = HALF3( 0.0f, 0.0f, 0.0f );
+	float3 specularLighting = float3( 0.0f, 0.0f, 0.0f );
 
 #if !FLASHLIGHT || defined ( _X360 )
 	#if SELFILLUM_ENVMAPMASK_ALPHA
 		// range of alpha:
 	    // 0 - 0.125 = lerp(diffuse,selfillum,alpha*8)
 	    // 0.125-1.0 = selfillum*(1+alpha-0.125)*8 (over bright glows)
-		HALF3 selfIllumComponent = g_SelfIllumTint * albedo;
+		float3 selfIllumComponent = g_SelfIllumTint * albedo;
 		half Adj_Alpha=8*envmapMaskTexel.a;
 		diffuseComponent=( max( 0, 1-Adj_Alpha ) * diffuseComponent) + Adj_Alpha * selfIllumComponent;
 	#else
 		if ( bSelfIllum )
 		{
-			float3 vSelfIllumMask = tex2D( SelfIllumMaskSampler, i.baseTexCoord.xy );
+			float3 vSelfIllumMask = SelfIllumMaskSampler.Sample( SelfIllumMaskSampler_s, i.baseTexCoord.xy );
 			vSelfIllumMask = lerp( baseColor.aaa, vSelfIllumMask, g_SelfIllumMaskControl );
 			diffuseComponent = lerp( diffuseComponent, g_SelfIllumTint * albedo, vSelfIllumMask );
 		}
@@ -447,24 +457,24 @@ float4 main( PS_INPUT i ) : COLOR
 	if( bCubemap )
 	{
 #if CUBEMAP_SPHERE_LEGACY
-		HALF3 reflectVect = normalize(CalcReflectionVectorUnnormalized( i.worldSpaceNormal, i.worldVertToEyeVector.xyz ));
+		float3 reflectVect = normalize(CalcReflectionVectorUnnormalized( i.worldSpaceNormal, i.worldVertToEyeVector.xyz ));
 
-		specularLighting = 0.5 * tex2D( EnvmapSampler, float2(reflectVect.x, reflectVect.y) ) * g_DiffuseModulation.rgb * diffuseLighting;
+		specularLighting = 0.5 * EnvmapSampler.Sample( EnvmapSampler_s, float3(reflectVect.x, reflectVect.y, 0) ) * g_DiffuseModulation.rgb * diffuseLighting;
 #else
-		HALF3 reflectVect = CalcReflectionVectorUnnormalized( i.worldSpaceNormal, i.worldVertToEyeVector.xyz );
+		float3 reflectVect = CalcReflectionVectorUnnormalized( i.worldSpaceNormal, i.worldVertToEyeVector.xyz );
 
-		specularLighting = ENV_MAP_SCALE * texCUBE( EnvmapSampler, reflectVect );
+		specularLighting = ENV_MAP_SCALE * EnvmapSampler.Sample( EnvmapSampler_s, reflectVect );
 		specularLighting *= specularFactor;
 		specularLighting *= g_EnvmapTint_TintReplaceFactor.rgb;
-		HALF3 specularLightingSquared = specularLighting * specularLighting;
+		float3 specularLightingSquared = specularLighting * specularLighting;
 		specularLighting = lerp( specularLighting, specularLightingSquared, g_EnvmapContrast_ShadowTweaks );
-		HALF3 greyScale = dot( specularLighting, HALF3( 0.299f, 0.587f, 0.114f ) );
+		float3 greyScale = dot( specularLighting, float3( 0.299f, 0.587f, 0.114f ) );
 		specularLighting = lerp( greyScale, specularLighting, g_EnvmapSaturation );
 #endif
 	}
 #endif
 
-	HALF3 result = diffuseComponent + specularLighting;
+	float3 result = diffuseComponent + specularLighting;
 
 #if LIGHTING_PREVIEW
 # if LIGHTING_PREVIEW == 1
@@ -485,8 +495,8 @@ float4 main( PS_INPUT i ) : COLOR
 		float2 vScreenPos;
 		vScreenPos.x = i.projPos.x;
 		vScreenPos.y = -i.projPos.y;
-		vScreenPos = (vScreenPos + i.projPos.w) * 0.5f;	
-		alpha *= DepthFeathering( DepthSampler, vScreenPos / i.projPos.w, i.projPos.w - i.projPos.z, i.projPos.w, g_DepthFeatheringConstants );
+		vScreenPos = (vScreenPos + i.projPos.w) * 0.5f;
+		alpha *= DepthFeathering( DepthSampler, DepthSampler_s, vScreenPos / i.projPos.w, i.projPos.w - i.projPos.z, i.projPos.w, g_DepthFeatheringConstants );
 	}
 #	endif
 

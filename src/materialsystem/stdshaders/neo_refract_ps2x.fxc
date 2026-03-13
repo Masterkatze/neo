@@ -1,4 +1,4 @@
-//====== Copyright © 1996-2007, Valve Corporation, All rights reserved. =======
+//====== Copyright (c) 1996-2007, Valve Corporation, All rights reserved. =======
 //
 //=============================================================================
 
@@ -22,29 +22,43 @@
 
 // SKIP: $MASKED && $BLUR
 
-#if defined( SHADER_MODEL_PS_2_0 )
-#	define WRITE_DEPTH_TO_DESTALPHA 0
-#endif
-
 #include "common_ps_fxc.h"
 #include "shader_constant_register_map.h"
 
-sampler NormalSampler2				: register( s1 );
-sampler RefractSampler				: register( s2 );
-sampler NormalSampler				: register( s3 );
+#ifndef WRITE_DEPTH_TO_DESTALPHA
+#	define WRITE_DEPTH_TO_DESTALPHA 0
+#endif
+
+// Normal decode modes (must match NORM_DECODE_* in common_ps_fxc.h)
+#define NORM_DECODE_NONE        0
+#define NORM_DECODE_ATI2N       1
+#define NORM_DECODE_ATI2N_ALPHA 2
+
+Texture2D NormalSampler2			: register( t1 );
+SamplerState NormalSampler2_s		: register( s1 );
+Texture2D RefractSampler			: register( t2 );
+SamplerState RefractSampler_s		: register( s2 );
+Texture2D NormalSampler				: register( t3 );
+SamplerState NormalSampler_s		: register( s3 );
 #if CUBEMAP
-sampler EnvmapSampler				: register( s4 );
+TextureCube EnvmapSampler			: register( t4 );
+SamplerState EnvmapSampler_s		: register( s4 );
 #endif
 #if REFRACTTINTTEXTURE
-sampler RefractTintSampler			: register( s5 );
+Texture2D RefractTintSampler		: register( t5 );
+SamplerState RefractTintSampler_s	: register( s5 );
 #endif
 
 #if NORMAL_DECODE_MODE == NORM_DECODE_ATI2N_ALPHA
-sampler AlphaMapSampler				: register( s6 );	// alpha
-sampler AlphaMapSampler2			: register( s7 );
+Texture2D AlphaMapSampler			: register( t6 );	// alpha
+SamplerState AlphaMapSampler_s		: register( s6 );
+Texture2D AlphaMapSampler2			: register( t7 );
+SamplerState AlphaMapSampler2_s		: register( s7 );
 #else
 #define AlphaMapSampler2			NormalSampler
+#define AlphaMapSampler2_s			NormalSampler_s
 #define AlphaMapSampler				NormalSampler2
+#define AlphaMapSampler_s			NormalSampler2_s
 #endif
 
 const float3 g_EnvmapTint			: register( c0 );
@@ -63,34 +77,62 @@ static const int g_BlurCount = BLUR;
 static const int g_Alpha = ALPHA;
 static const float g_BlurFraction = 1.0f / 512.0f;
 static const float g_HalfBlurFraction = 0.5 * g_BlurFraction;
-static const float4 g_BlurFractionVec = float4( g_BlurFraction, g_HalfBlurFraction, 
+static const float4 g_BlurFractionVec = float4( g_BlurFraction, g_HalfBlurFraction,
                                                -g_BlurFraction,-g_HalfBlurFraction );
 
 struct PS_INPUT
 {
 	float4 vBumpTexCoord			: TEXCOORD0;			// NormalMap1 in xy, NormalMap2 in wz
 	float3 vTangentVertToEyeVector	: TEXCOORD1;
-	float3 vWorldNormal				: TEXCOORD2; 
-	float3 vWorldTangent			: TEXCOORD3; 
-	float3 vWorldBinormal			: TEXCOORD4; 
-	float3 vRefractXYW				: TEXCOORD5; 
+	float3 vWorldNormal				: TEXCOORD2;
+	float3 vWorldTangent			: TEXCOORD3;
+	float3 vWorldBinormal			: TEXCOORD4;
+	float3 vRefractXYW				: TEXCOORD5;
 	float3 vWorldViewVector			: TEXCOORD6;
 #if COLORMODULATE
 	float4 ColorModulate            : COLOR0;
 #endif
 
 	float4 worldPos_projPosZ		: TEXCOORD7;		// Necessary for pixel fog
-	float4 fogFactorW				: COLOR1;	
+	float4 fogFactorW				: COLOR1;
 };
 
-float4 main( PS_INPUT i ) : COLOR
+// Inline SM6-compatible normal decompression (replaces DecompressNormal from common_ps_fxc.h
+// which uses legacy sampler/tex2D types).
+float4 DecompressNormalSM6( Texture2D normalTex, SamplerState normalSampler,
+                             float2 tc, int nDecompressionMode,
+                             Texture2D alphaTex, SamplerState alphaSampler )
+{
+	float4 normalTexel = normalTex.Sample( normalSampler, tc );
+	float4 result;
+
+	if ( nDecompressionMode == NORM_DECODE_NONE )
+	{
+		result = float4( normalTexel.xyz * 2.0f - 1.0f, normalTexel.a );
+	}
+	else if ( nDecompressionMode == NORM_DECODE_ATI2N )
+	{
+		result.xy = normalTexel.xy * 2.0f - 1.0f;
+		result.z = sqrt( 1.0f - dot( result.xy, result.xy ) );
+		result.a = 1.0f;
+	}
+	else // ATI2N plus ATI1N for alpha
+	{
+		result.xy = normalTexel.xy * 2.0f - 1.0f;
+		result.z = sqrt( 1.0f - dot( result.xy, result.xy ) );
+		result.a = alphaTex.Sample( alphaSampler, tc ).x;
+	}
+
+	return result;
+}
+
+float4 main( PS_INPUT i ) : SV_Target
 {
 	float3 result;
-	
+
 	float pixelFogFactor = CalcPixelFogFactor( PIXELFOGTYPE, g_FogParams, g_EyePos_SpecExponent.z, i.worldPos_projPosZ.z, i.worldPos_projPosZ.w );
 
 #if FADEOUTONSILHOUETTE
-	//float blend = -i.projNormal.z;
 	float blend = saturate( dot( -i.vWorldViewVector.xyz, i.vWorldNormal.xyz ) );
 	blend = blend * blend * blend;
 #else
@@ -98,15 +140,19 @@ float4 main( PS_INPUT i ) : COLOR
 #endif
 
 	// Decompress normal
-	float4 vNormal = DecompressNormal( NormalSampler, i.vBumpTexCoord.xy, NORMAL_DECODE_MODE, AlphaMapSampler );
+	float4 vNormal = DecompressNormalSM6( NormalSampler, NormalSampler_s,
+	                                      i.vBumpTexCoord.xy, NORMAL_DECODE_MODE,
+	                                      AlphaMapSampler, AlphaMapSampler_s );
 
 #if SECONDARY_NORMAL
-	float3 vNormal2 = DecompressNormal( NormalSampler2, i.vBumpTexCoord.wz, NORMAL_DECODE_MODE, AlphaMapSampler2 );
-	vNormal.xyz = normalize( vNormal.xyz + vNormal2.xyz );
+	float4 vNormal2Raw = DecompressNormalSM6( NormalSampler2, NormalSampler2_s,
+	                                          i.vBumpTexCoord.wz, NORMAL_DECODE_MODE,
+	                                          AlphaMapSampler2, AlphaMapSampler2_s );
+	vNormal.xyz = normalize( vNormal.xyz + vNormal2Raw.xyz );
 #endif
 
 #if REFRACTTINTTEXTURE
-	float3 refractTintColor = 2.0 * g_RefractTint * tex2D( RefractTintSampler, i.vBumpTexCoord.xy );
+	float3 refractTintColor = 2.0 * g_RefractTint * RefractTintSampler.Sample( RefractTintSampler_s, i.vBumpTexCoord.xy ).rgb;
 #else
 	float3 refractTintColor = g_RefractTint;
 #endif
@@ -117,7 +163,7 @@ float4 main( PS_INPUT i ) : COLOR
 
 	// Perform division by W only once
 	float ooW = 1.0f / i.vRefractXYW.z;
-	
+
 	// Compute coordinates for sampling refraction
 	float2 vRefractTexCoordNoWarp = i.vRefractXYW.xy * ooW;
 	float2 vRefractTexCoord = vNormal.xy;
@@ -130,35 +176,22 @@ float4 main( PS_INPUT i ) : COLOR
 
 #if (BLUR==1)  // use polyphase magic to convert 9 lookups into 4
 
-	//  basic principle behind this transformation:
-	//  [ A  B  C ]
-	//  [ D  E  F ]
-	//  [ G  H  I ]
-	//  use bilinear filtering hardware to weight upper 2x2 samples evenly (0.25* [A + B + D + E]).
-	//  scale the upper 2x2 by 4/9 (total area of kernel occupied)
-	//  use bilinear filtering hardware to weight right 1x2 samples evenly (0.5*[C + F])
-	//  scale right 1x2 by 2/9
-	//  use bilinear filtering hardware to weight lower 2x1 samples evenly (0.5*[G + H])
-	//  scale bottom 2x1 by 2/9
-	//  fetch last sample (I) and scale by 1/9.
-	
 	float2 upper_2x2_loc = vRefractTexCoord.xy - float2(g_HalfBlurFraction, g_HalfBlurFraction);
 	float2 right_1x2_loc = vRefractTexCoord.xy + float2(g_BlurFraction, -g_HalfBlurFraction);
 	float2 lower_2x1_loc = vRefractTexCoord.xy + float2(-g_HalfBlurFraction, g_BlurFraction);
 	float2 singleton_loc = vRefractTexCoord.xy + float2(g_BlurFraction, g_BlurFraction);
-	result  = tex2D(RefractSampler, upper_2x2_loc) * 0.4444444;
-	result += tex2D(RefractSampler, right_1x2_loc) * 0.2222222;
-	result += tex2D(RefractSampler, lower_2x1_loc) * 0.2222222;
-	result += tex2D(RefractSampler, singleton_loc) * 0.1111111;
+	result  = RefractSampler.Sample( RefractSampler_s, upper_2x2_loc ).rgb * 0.4444444;
+	result += RefractSampler.Sample( RefractSampler_s, right_1x2_loc ).rgb * 0.2222222;
+	result += RefractSampler.Sample( RefractSampler_s, lower_2x1_loc ).rgb * 0.2222222;
+	result += RefractSampler.Sample( RefractSampler_s, singleton_loc ).rgb * 0.1111111;
 
 	#if ( SHADER_SRGB_READ == 1 )
 	{
-		// Just do this once rather than after every blur step, which is wrong, but much more efficient
 		result = GammaToLinear( result );
 	}
 	#endif
 
-	float3 unblurredColor = tex2D(RefractSampler, vRefractTexCoordNoWarp.xy);
+	float3 unblurredColor = RefractSampler.Sample( RefractSampler_s, vRefractTexCoordNoWarp.xy ).rgb;
 	#if ( SHADER_SRGB_READ == 1 )
 	{
 		unblurredColor = GammaToLinear( unblurredColor );
@@ -175,7 +208,7 @@ float4 main( PS_INPUT i ) : COLOR
 	{
 		for( y = -g_BlurCount; y <= g_BlurCount; y++ )
 		{
-			result += tex2D( RefractSampler, vRefractTexCoord.xy + float2( g_BlurFraction * x, g_BlurFraction * y ) );
+			result += RefractSampler.Sample( RefractSampler_s, vRefractTexCoord.xy + float2( g_BlurFraction * x, g_BlurFraction * y ) ).rgb;
 		}
 	}
 
@@ -184,13 +217,12 @@ float4 main( PS_INPUT i ) : COLOR
 
 	#if ( SHADER_SRGB_READ == 1 )
 	{
-		// Just do this once rather than after every blur step, which is wrong, but much more efficient
 		result = GammaToLinear( result );
 	}
 	#endif
 
 	// result is the blurred one now. . .now lerp.
-	float3 unblurredColor = tex2D( RefractSampler, vRefractTexCoordNoWarp.xy );
+	float3 unblurredColor = RefractSampler.Sample( RefractSampler_s, vRefractTexCoordNoWarp.xy ).rgb;
 	#if ( SHADER_SRGB_READ == 1 )
 	{
 		unblurredColor = GammaToLinear( unblurredColor );
@@ -200,23 +232,23 @@ float4 main( PS_INPUT i ) : COLOR
 	result = lerp( unblurredColor, result * refractTintColor, blend );
 #else
 #	if MASKED
-	float4 fMaskedResult = tex2D( RefractSampler, vRefractTexCoord.xy );
+	float4 fMaskedResult = RefractSampler.Sample( RefractSampler_s, vRefractTexCoord.xy );
 	#if ( SHADER_SRGB_READ == 1 )
 	{
-		fMaskedResult = GammaToLinear( fMaskedResult );
+		fMaskedResult.rgb = GammaToLinear( fMaskedResult.rgb );
 	}
 	#endif
 
 	return FinalOutput( float4(fMaskedResult.rgb, fMaskedResult.a * g_Alpha),
 		pixelFogFactor, PIXELFOGTYPE, TONEMAP_SCALE_NONE );
 #	else
-	float3 colorWarp = tex2D( RefractSampler, vRefractTexCoord.xy );
+	float3 colorWarp = RefractSampler.Sample( RefractSampler_s, vRefractTexCoord.xy ).rgb;
 	#if ( SHADER_SRGB_READ == 1 )
 	{
 		colorWarp = GammaToLinear( colorWarp );
 	}
 	#endif
-	float3 colorNoWarp = tex2D( RefractSampler, vRefractTexCoordNoWarp.xy );
+	float3 colorNoWarp = RefractSampler.Sample( RefractSampler_s, vRefractTexCoordNoWarp.xy ).rgb;
 	#if ( SHADER_SRGB_READ == 1 )
 	{
 		colorNoWarp = GammaToLinear( colorNoWarp );
@@ -234,7 +266,7 @@ float4 main( PS_INPUT i ) : COLOR
 	float3 worldSpaceNormal = Vec3TangentToWorld( vNormal.xyz, i.vWorldNormal, i.vWorldTangent, i.vWorldBinormal );
 
 	float3 reflectVect = CalcReflectionVectorUnnormalized( worldSpaceNormal, i.vTangentVertToEyeVector );
-	float3 specularLighting = texCUBE( EnvmapSampler, reflectVect );
+	float3 specularLighting = EnvmapSampler.Sample( EnvmapSampler_s, reflectVect ).rgb;
 	specularLighting *= specularFactor;
 	specularLighting *= g_EnvmapTint;
 	float3 specularLightingSquared = specularLighting * specularLighting;

@@ -36,7 +36,8 @@ const float4 cIrisProjectionV	:  register( SHADER_SPECIFIC_CONST_9 );
 const float3 cMorphTargetTextureDim : register( SHADER_SPECIFIC_CONST_10 );
 const float4 cMorphSubrect		: register( SHADER_SPECIFIC_CONST_11 );
 
-sampler2D morphSampler			: register( s0 );
+Texture2D morphSampler			: register( t0 );
+SamplerState morphSampler_s		: register( s0 );
 #endif
 
 struct VS_INPUT
@@ -57,10 +58,7 @@ struct VS_INPUT
 
 struct VS_OUTPUT
 {
-    float4 projPos				: POSITION;			// Projection-space position
-#if !defined( _X360 )
-	float  fog					: FOG;				// Fixed-function fog factor
-#endif
+    float4 projPos				: SV_Position;		// Projection-space position
 	float4 spotTexCoord			: TEXCOORD0;		// Spotlight texture coordinates
 	float2 baseTexCoord			: TEXCOORD1;		// Base texture coordinates
 	float2 irisTexCoord			: TEXCOORD3;		// Iris texture coordinates
@@ -88,13 +86,13 @@ VS_OUTPUT main( const VS_INPUT v )
 #if !defined( SHADER_MODEL_VS_3_0 ) || !MORPHING
 	ApplyMorph( v.vPosFlex, v.vNormalFlex, vPosition.xyz, vNormal );
 #else
-	ApplyMorph( morphSampler, cMorphTargetTextureDim, cMorphSubrect, v.vVertexID, float3( 0, 0, 0 ), vPosition.xyz, vNormal );
+	ApplyMorph( morphSampler, morphSampler_s, cMorphTargetTextureDim, cMorphSubrect, v.vVertexID, float3( 0, 0, 0 ), vPosition.xyz, vNormal );
 #endif
 
 	// Perform skinning
 	float3 worldNormal, worldPos;
-	SkinPositionAndNormal( 
-		g_bSkinning, 
+	SkinPositionAndNormal(
+		g_bSkinning,
 		vPosition, vNormal,
 		v.vBoneWeights, v.vBoneIndices,
 		worldPos, worldNormal );
@@ -106,11 +104,6 @@ VS_OUTPUT main( const VS_INPUT v )
 	o.projPos    = projPos;
 	o.projPosXYZ = projPos.xyz;
 	o.worldPos   = worldPos.xyz;
-
-#if !defined( _X360 )
-	// Set fixed-function fog factor
-	o.fog = CalcFog( worldPos, o.projPos, g_FogType );
-#endif
 
 	// Base texture coordinates
 	o.baseTexCoord = v.vTexCoord0;
@@ -135,7 +128,7 @@ VS_OUTPUT main( const VS_INPUT v )
 
 	float endFalloffFactor = RemapValClamped_01( flDist, fFarZ, 0.6 * fFarZ );
 	o.vertAtten.xyz = endFalloffFactor * dot( vDistAtten, cFlashlighAtten.xyz );
-	
+
 	o.vertAtten *= dot( normalize( vWorldPosToLightVector ), worldNormal );
 
 	o.irisTexCoord.x  = dot( cIrisProjectionU,  float4(worldPos, 1) );

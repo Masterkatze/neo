@@ -4,7 +4,7 @@
 
 #pragma once
 #include "shaderlib/cshader.h"
-class water_vs20_Static_Index
+class Water_vs20_Static_Index
 {
 	unsigned int m_nBASETEXTURE : 2;
 	unsigned int m_nMULTITEXTURE : 2;
@@ -31,7 +31,7 @@ public:
 #endif	// _DEBUG
 	}
 
-	water_vs20_Static_Index(  )
+	Water_vs20_Static_Index(  )
 	{
 		m_nBASETEXTURE = 0;
 		m_nMULTITEXTURE = 0;
@@ -49,13 +49,13 @@ public:
 	}
 };
 
-#define shaderStaticTest_water_vs20 vsh_forgot_to_set_static_BASETEXTURE + vsh_forgot_to_set_static_MULTITEXTURE
+#define shaderStaticTest_Water_vs20 vsh_forgot_to_set_static_BASETEXTURE + vsh_forgot_to_set_static_MULTITEXTURE
 
 
-class water_vs20_Dynamic_Index
+class Water_vs20_Dynamic_Index
 {
 public:
-	water_vs20_Dynamic_Index(  )
+	Water_vs20_Dynamic_Index(  )
 	{
 	}
 
@@ -65,5 +65,5 @@ public:
 	}
 };
 
-#define shaderDynamicTest_water_vs20 1
+#define shaderDynamicTest_Water_vs20 1
 

@@ -77,10 +77,10 @@ const float4 cLightScale : register( c30 );
 
 struct LPREVIEW_PS_OUT
 {
-	float4 color : COLOR0;
-	float4 normal : COLOR1;
-	float4 position : COLOR2;
-	float4 flags : COLOR3;
+	float4 color : SV_Target0;
+	float4 normal : SV_Target1;
+	float4 position : SV_Target2;
+	float4 flags : SV_Target3;
 };
 
 /*
@@ -159,9 +159,9 @@ HALF4 GetNormal( sampler normalSampler,
 #define NORM_DECODE_ATI2N			1
 #define NORM_DECODE_ATI2N_ALPHA		2
 
-float4 DecompressNormal( sampler NormalSampler, float2 tc, int nDecompressionMode, sampler AlphaSampler )
+float4 DecompressNormal( Texture2D NormalSampler, SamplerState NormalSampler_s, float2 tc, int nDecompressionMode, Texture2D AlphaSampler, SamplerState AlphaSampler_s )
 {
-	float4 normalTexel = tex2D( NormalSampler, tc );
+	float4 normalTexel = NormalSampler.Sample( NormalSampler_s, tc );
 	float4 result;
 
 	if ( nDecompressionMode == NORM_DECODE_NONE )
@@ -178,22 +178,22 @@ float4 DecompressNormal( sampler NormalSampler, float2 tc, int nDecompressionMod
 	{
 		result.xy = normalTexel.xy * 2.0f - 1.0f;
 		result.z = sqrt( 1.0f - dot(result.xy, result.xy) );
-		result.a = tex2D( AlphaSampler, tc ).x;					// Note that this comes in on the X channel
+		result.a = AlphaSampler.Sample( AlphaSampler_s, tc ).x;	// Note that this comes in on the X channel
 	}
 
 	return result;
 }
 
-float4 DecompressNormal( sampler NormalSampler, float2 tc, int nDecompressionMode )
+float4 DecompressNormal( Texture2D NormalSampler, SamplerState NormalSampler_s, float2 tc, int nDecompressionMode )
 {
-	return DecompressNormal( NormalSampler, tc, nDecompressionMode, NormalSampler );
+	return DecompressNormal( NormalSampler, NormalSampler_s, tc, nDecompressionMode, NormalSampler, NormalSampler_s );
 }
 
 
-HALF3 NormalizeWithCubemap( sampler normalizeSampler, HALF3 input )
+float3 NormalizeWithCubemap( TextureCube normalizeSampler, SamplerState normalizeSampler_s, float3 input )
 {
-//	return texCUBE( normalizeSampler, input ) * 2.0f - 1.0f;
-	return texCUBE( normalizeSampler, input );
+//	return normalizeSampler.Sample( normalizeSampler_s, input ) * 2.0f - 1.0f;
+	return normalizeSampler.Sample( normalizeSampler_s, input ).rgb;
 }
 
 /*
@@ -300,20 +300,24 @@ float3 BlendPixelFog( const float3 vShaderColor, float pixelFogFactor, const flo
 	{
 		return vShaderColor;
 	}
+	
+	// not sure what to return here
+	return vShaderColor;
 }
 
 
 #if ((defined(SHADER_MODEL_PS_2_B) || defined(SHADER_MODEL_PS_3_0)) && ( CONVERT_TO_SRGB != 0 ) )
-sampler1D GammaTableSampler : register( s15 );
+Texture2D GammaTableSampler      : register( t15 );
+SamplerState GammaTableSampler_s : register( s15 );
 
 float3 SRGBOutput( const float3 vShaderColor )
-{	
+{
 	//On ps2b capable hardware we always have the linear->gamma conversion table texture in sampler s15.
 	float3 result;
-	result.r = tex1D( GammaTableSampler, vShaderColor.r ).r;
-	result.g = tex1D( GammaTableSampler, vShaderColor.g ).r;
-	result.b = tex1D( GammaTableSampler, vShaderColor.b ).r;
-	return result;	
+	result.r = GammaTableSampler.Sample( GammaTableSampler_s, float2( vShaderColor.r, 0.5 ) ).r;
+	result.g = GammaTableSampler.Sample( GammaTableSampler_s, float2( vShaderColor.g, 0.5 ) ).r;
+	result.b = GammaTableSampler.Sample( GammaTableSampler_s, float2( vShaderColor.b, 0.5 ) ).r;
+	return result;
 }
 
 #else
@@ -766,7 +770,7 @@ float3 TextureCombinePostLighting( float3 lit_baseColor, float4 detailColor, int
 }
 
 //NOTE: On X360. fProjZ is expected to be pre-reversed for cheaper math here in the pixel shader
-float DepthFeathering( sampler DepthSampler, const float2 vScreenPos, float fProjZ, float fProjW, float4 vDepthBlendConstants )
+float DepthFeathering( Texture2D DepthSampler, SamplerState DepthSampler_s, const float2 vScreenPos, float fProjZ, float fProjW, float4 vDepthBlendConstants )
 {
 #	if ( !(defined(SHADER_MODEL_PS_1_1) || defined(SHADER_MODEL_PS_1_4) || defined(SHADER_MODEL_PS_2_0)) ) //minimum requirement of ps2b
 	{
@@ -799,7 +803,7 @@ float DepthFeathering( sampler DepthSampler, const float2 vScreenPos, float fPro
 		}
 #		else
 		{
-			flSceneDepth = tex2D( DepthSampler, vScreenPos ).a;	// PC uses dest alpha of the frame buffer
+			flSceneDepth = DepthSampler.Sample( DepthSampler_s, vScreenPos ).a;	// PC uses dest alpha of the frame buffer
 			flSpriteDepth = SoftParticleDepth( fProjZ );
 
 			flFeatheredAlpha = abs(flSceneDepth - flSpriteDepth) * vDepthBlendConstants.x;

@@ -1,4 +1,4 @@
-//======= Copyright � 1996-2007, Valve Corporation, All rights reserved. ======
+//======= Copyright © 1996-2007, Valve Corporation, All rights reserved. ======
 // STATIC: "CONVERT_TO_SRGB"			"0..0"
 // STATIC: "CUBEMAP"					"0..1"
 // STATIC: "SELFILLUM"					"0..1"
@@ -101,28 +101,45 @@ const float4 g_ShaderControls						: register( PSREG_CONSTANT_27 );					// x is 
 #define g_fInvertPhongMask				g_ShaderControls.w
 
 
-sampler BaseTextureSampler		: register( s0 );	// Base map, selfillum in alpha
-sampler SpecularWarpSampler		: register( s1 );	// Specular warp sampler (for iridescence etc)
-sampler DiffuseWarpSampler		: register( s2 );	// Lighting warp sampler (1D texture for diffuse lighting modification)
-sampler NormalMapSampler		: register( s3 );	// Normal map, specular mask in alpha
-sampler ShadowDepthSampler		: register( s4 );	// Flashlight shadow depth map sampler
-sampler NormalizeRandRotSampler	: register( s5 );	// Normalization / RandomRotation samplers
-sampler FlashlightSampler		: register( s6 );	// Flashlight cookie
-sampler SpecExponentSampler		: register( s7 );	// Specular exponent map
-sampler EnvmapSampler			: register( s8 );	// Cubic environment map
+Texture2D BaseTextureSampler		: register( t0 );	// Base map, selfillum in alpha
+SamplerState BaseTextureSampler_s	: register( s0 );
+Texture2D SpecularWarpSampler		: register( t1 );	// Specular warp sampler (for iridescence etc)
+SamplerState SpecularWarpSampler_s	: register( s1 );
+Texture2D DiffuseWarpSampler		: register( t2 );	// Lighting warp sampler (1D texture for diffuse lighting modification)
+SamplerState DiffuseWarpSampler_s	: register( s2 );
+Texture2D NormalMapSampler			: register( t3 );	// Normal map, specular mask in alpha
+SamplerState NormalMapSampler_s		: register( s3 );
+Texture2D ShadowDepthSampler		: register( t4 );	// Flashlight shadow depth map sampler
+SamplerState ShadowDepthSampler_s	: register( s4 );
+Texture2D NormalizeRandRotSampler		: register( t5 );	// Normalization / RandomRotation samplers
+SamplerState NormalizeRandRotSampler_s	: register( s5 );
+TextureCube NormalizeSampler			: register( t11 );	// Normalizing cubemap (unused in ps20b - NormalizeWithCubemap not called)
+SamplerState NormalizeSampler_s			: register( s11 );
+Texture2D FlashlightSampler			: register( t6 );	// Flashlight cookie
+SamplerState FlashlightSampler_s	: register( s6 );
+Texture2D SpecExponentSampler		: register( t7 );	// Specular exponent map
+SamplerState SpecExponentSampler_s	: register( s7 );
+TextureCube EnvmapSampler			: register( t8 );	// Cubic environment map
+SamplerState EnvmapSampler_s		: register( s8 );
 
 #if WRINKLEMAP
-sampler WrinkleSampler			: register( s9 );	// Compression base
-sampler StretchSampler			: register( s10 );	// Expansion base
-sampler NormalWrinkleSampler	: register( s11 );	// Compression base
-sampler NormalStretchSampler	: register( s12 );	// Expansion base
+Texture2D WrinkleSampler			: register( t9 );	// Compression base
+SamplerState WrinkleSampler_s		: register( s9 );
+Texture2D StretchSampler			: register( t10 );	// Expansion base
+SamplerState StretchSampler_s		: register( s10 );
+Texture2D NormalWrinkleSampler		: register( t11 );	// Compression base
+SamplerState NormalWrinkleSampler_s	: register( s11 );
+Texture2D NormalStretchSampler		: register( t12 );	// Expansion base
+SamplerState NormalStretchSampler_s	: register( s12 );
 #endif
 
 #if DETAILTEXTURE
-sampler DetailSampler			: register( s13 );	// detail texture
+Texture2D DetailSampler				: register( t13 );	// detail texture
+SamplerState DetailSampler_s		: register( s13 );
 #endif
 
-sampler SelfIllumMaskSampler	: register( s14 );	// selfillummask
+Texture2D SelfIllumMaskSampler		: register( t14 );	// selfillummask
+SamplerState SelfIllumMaskSampler_s	: register( s14 );
 
 struct PS_INPUT
 {
@@ -138,7 +155,7 @@ struct PS_INPUT
 
 
 
-float4 main( PS_INPUT i ) : COLOR
+float4 main( PS_INPUT i ) : SV_Target
 {
 	bool bWrinkleMap = WRINKLEMAP ? true : false;
 	bool bDoDiffuseWarp = LIGHTWARPTEXTURE ? true : false;
@@ -166,17 +183,17 @@ float4 main( PS_INPUT i ) : COLOR
 	float flTextureAmount = 1.0f - flWrinkleAmount - flStretchAmount;		// These should sum to one
 #endif
 
-	float4 baseColor = tex2D( BaseTextureSampler, i.baseTexCoordDetailTexCoord.xy );
+	float4 baseColor = BaseTextureSampler.Sample(BaseTextureSampler_s, i.baseTexCoordDetailTexCoord.xy);
 #if WRINKLEMAP
-	float4 wrinkleColor = tex2D( WrinkleSampler, i.baseTexCoordDetailTexCoord.xy );
-	float4 stretchColor = tex2D( StretchSampler, i.baseTexCoordDetailTexCoord.xy );
+	float4 wrinkleColor = WrinkleSampler.Sample(WrinkleSampler_s, i.baseTexCoordDetailTexCoord.xy);
+	float4 stretchColor = StretchSampler.Sample(StretchSampler_s, i.baseTexCoordDetailTexCoord.xy);
 
 	// Apply wrinkle blend to only RGB.  Alpha comes from the base texture
 	baseColor.rgb = flTextureAmount * baseColor + flWrinkleAmount * wrinkleColor +  flStretchAmount * stretchColor;
 #endif
 
 #if DETAILTEXTURE
-	float4 detailColor = tex2D( DetailSampler, i.baseTexCoordDetailTexCoord.zw );
+	float4 detailColor = DetailSampler.Sample(DetailSampler_s, i.baseTexCoordDetailTexCoord.zw);
 	baseColor = TextureCombine( baseColor, detailColor, DETAIL_BLEND_MODE, g_SelfIllumTint_and_DetailBlendFactor.w );
 #endif
 
@@ -187,11 +204,11 @@ float4 main( PS_INPUT i ) : COLOR
 
 	float3 worldSpaceNormal, tangentSpaceNormal;
 	float fSpecMask = 1.0f;
-	float4 normalTexel = tex2D( NormalMapSampler, i.baseTexCoordDetailTexCoord.xy );
+	float4 normalTexel = NormalMapSampler.Sample(NormalMapSampler_s, i.baseTexCoordDetailTexCoord.xy);
 
 #if WRINKLEMAP
-	float4 wrinkleNormal = tex2D( NormalWrinkleSampler,	i.baseTexCoordDetailTexCoord.xy );
-	float4 stretchNormal = tex2D( NormalStretchSampler,	i.baseTexCoordDetailTexCoord.xy );
+	float4 wrinkleNormal = NormalWrinkleSampler.Sample(NormalWrinkleSampler_s, i.baseTexCoordDetailTexCoord.xy);
+	float4 stretchNormal = NormalStretchSampler.Sample(NormalStretchSampler_s, i.baseTexCoordDetailTexCoord.xy);
 	normalTexel = flTextureAmount * normalTexel + flWrinkleAmount * wrinkleNormal + flStretchAmount * stretchNormal;
 #endif
 
@@ -219,11 +236,11 @@ float4 main( PS_INPUT i ) : COLOR
 		// Summation of diffuse illumination from all local lights
 		diffuseLighting = PixelShaderDoLighting( vWorldPos, worldSpaceNormal,
 			float3( 0.0f, 0.0f, 0.0f ), false, true, vLightAtten,
-			cAmbientCube, NormalizeRandRotSampler, nNumLights, cLightInfo, true,
+			cAmbientCube, NormalizeSampler, NormalizeSampler_s, nNumLights, cLightInfo, true,
 
 			// These parameters aren't passed by generic shaders:
 			false, 1.0f,
-			bDoDiffuseWarp, DiffuseWarpSampler );
+			bDoDiffuseWarp, DiffuseWarpSampler, DiffuseWarpSampler_s );
 
 		if( bCubemap )
 		{
@@ -237,11 +254,11 @@ float4 main( PS_INPUT i ) : COLOR
 			envMapColor = (ENV_MAP_SCALE *
 							lerp(1, fFresnelRanges, g_EnvMapFresnel.x) *
 							lerp(fEnvMapMask, 1-fEnvMapMask, g_fInvertPhongMask)) *
-							texCUBE( EnvmapSampler, vReflect ) *
+							EnvmapSampler.Sample(EnvmapSampler_s, vReflect) *
 							g_EnvmapTint_ShadowTweaks.xyz;
 		}
 	}
-	
+
 	float3 specularLighting = float3( 0.0f, 0.0f, 0.0f );
 	float3 rimLighting = float3( 0.0f, 0.0f, 0.0f );
 
@@ -250,8 +267,8 @@ float4 main( PS_INPUT i ) : COLOR
 	float fSpecExp = 1;
 
 #if ( FASTPATH_NOBUMP == 0 )
-	float4 vSpecExpMap = tex2D( SpecExponentSampler, i.baseTexCoordDetailTexCoord.xy );
-	
+	float4 vSpecExpMap = SpecExponentSampler.Sample(SpecExponentSampler_s, i.baseTexCoordDetailTexCoord.xy);
+
 	if ( !bFlashlight )
 	{
 		fRimMask = lerp( 1.0f, vSpecExpMap.a, g_RimMaskControl );						// Select rim mask
@@ -261,7 +278,7 @@ float4 main( PS_INPUT i ) : COLOR
 #if defined( _X360 )
 	[flatten]
 #endif
-	
+
 #if ( PHONG_USE_EXPONENT_FACTOR )
 	fSpecExp = ( 1.0f + g_EyePos_SpecExponent.w * vSpecExpMap.r );
 #else
@@ -274,7 +291,7 @@ float4 main( PS_INPUT i ) : COLOR
 #endif
 	vSpecularTint = lerp( float3(1.0f, 1.0f, 1.0f), baseColor.rgb, vSpecExpMap.g );
 	vSpecularTint = (g_SpecularTint.r >= 0.0) ? g_SpecularTint.rgb : vSpecularTint;
-		
+
 #else
 	fSpecExp = max(g_EyePos_SpecExponent.w, 0);
 #endif
@@ -287,7 +304,7 @@ float4 main( PS_INPUT i ) : COLOR
 		PixelShaderDoSpecularLighting( vWorldPos, worldSpaceNormal,
 			fSpecExp, vEyeDir, vLightAtten,
 			nNumLights, cLightInfo, false, 1.0f, bDoSpecularWarp,
-			SpecularWarpSampler, fFresnelRanges, bDoRimLighting, g_RimExponent,
+			SpecularWarpSampler, SpecularWarpSampler_s, fFresnelRanges, bDoRimLighting, g_RimExponent,
 
 			// Outputs
 			specularLighting, rimLighting );
@@ -297,10 +314,10 @@ float4 main( PS_INPUT i ) : COLOR
 		#if FLASHLIGHT
 			float4 flashlightSpacePosition = mul( float4( vWorldPos, 1.0f ), g_FlashlightWorldToTexture );
 
-			DoSpecularFlashlight( g_FlashlightPos, vWorldPos, flashlightSpacePosition, worldSpaceNormal, 
+			DoSpecularFlashlight( g_FlashlightPos, vWorldPos, flashlightSpacePosition, worldSpaceNormal,
 				g_FlashlightAttenuationFactors.xyz, g_FlashlightAttenuationFactors.w,
-				FlashlightSampler, ShadowDepthSampler, NormalizeRandRotSampler, FLASHLIGHTDEPTHFILTERMODE, FLASHLIGHTSHADOWS, true, vProjPos.xy / vProjPos.z,
-				fSpecExp, vEyeDir, bDoSpecularWarp, SpecularWarpSampler, fFresnelRanges, g_EnvmapTint_ShadowTweaks,
+				FlashlightSampler, FlashlightSampler_s, ShadowDepthSampler, ShadowDepthSampler_s, NormalizeRandRotSampler, NormalizeRandRotSampler_s, FLASHLIGHTDEPTHFILTERMODE, FLASHLIGHTSHADOWS, true, vProjPos.xy / vProjPos.z,
+				fSpecExp, vEyeDir, bDoSpecularWarp, SpecularWarpSampler, SpecularWarpSampler_s, fFresnelRanges, g_EnvmapTint_ShadowTweaks,
 
 				// These two values are output
 				diffuseLighting, specularLighting );
@@ -335,7 +352,7 @@ float4 main( PS_INPUT i ) : COLOR
 		float flSelfIllumFresnel = ( pow( saturate( dot( vVertexNormal.xyz, vEyeDir.xyz ) ), g_SelfIllumScaleBiasExpBrightness.z ) * g_SelfIllumScaleBiasExpBrightness.x ) + g_SelfIllumScaleBiasExpBrightness.y;
 		diffuseComponent = lerp( diffuseComponent, g_SelfIllumTint_and_DetailBlendFactor.rgb * albedo * g_SelfIllumScaleBiasExpBrightness.w, baseColor.a * saturate( flSelfIllumFresnel ) );
 #else
-		float3 vSelfIllumMask = tex2D( SelfIllumMaskSampler, i.baseTexCoordDetailTexCoord.xy );
+		float3 vSelfIllumMask = SelfIllumMaskSampler.Sample(SelfIllumMaskSampler_s, i.baseTexCoordDetailTexCoord.xy);
 		vSelfIllumMask = lerp( baseColor.aaa, vSelfIllumMask, g_SelfIllumMaskControl );
 		diffuseComponent = lerp( diffuseComponent, g_SelfIllumTint_and_DetailBlendFactor.rgb * albedo, vSelfIllumMask );
 #endif
@@ -344,14 +361,14 @@ float4 main( PS_INPUT i ) : COLOR
 	}
 
 #if DETAILTEXTURE
-	diffuseComponent = TextureCombinePostLighting( diffuseComponent, detailColor, 
+	diffuseComponent = TextureCombinePostLighting( diffuseComponent, detailColor,
 		DETAIL_BLEND_MODE, g_SelfIllumTint_and_DetailBlendFactor.w );
 #endif
 
 	if ( bDoRimLighting && !bFlashlight )
 	{
 		float fRimMultiply = fRimMask * fRimFresnel; // both unit range: [0, 1]
-		
+
 		// Add in rim light modulated with tint, mask and traditional Fresnel (not using Fresnel ranges)
 		rimLighting *= fRimMultiply;
 

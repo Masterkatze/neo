@@ -3,7 +3,7 @@
 
 #pragma once
 #include "shaderlib/cshader.h"
-class refract_vs20_Static_Index
+class Refract_vs20_Static_Index
 {
 	unsigned int m_nMODEL : 2;
 	unsigned int m_nCOLORMODULATE : 2;
@@ -30,7 +30,7 @@ public:
 #endif	// _DEBUG
 	}
 
-	refract_vs20_Static_Index(  )
+	Refract_vs20_Static_Index(  )
 	{
 		m_nMODEL = 0;
 		m_nCOLORMODULATE = 0;
@@ -47,10 +47,10 @@ public:
 	}
 };
 
-#define shaderStaticTest_refract_vs20 vsh_forgot_to_set_static_MODEL + vsh_forgot_to_set_static_COLORMODULATE
+#define shaderStaticTest_Refract_vs20 vsh_forgot_to_set_static_MODEL + vsh_forgot_to_set_static_COLORMODULATE
 
 
-class refract_vs20_Dynamic_Index
+class Refract_vs20_Dynamic_Index
 {
 	unsigned int m_nCOMPRESSED_VERTS : 2;
 	unsigned int m_nSKINNING : 2;
@@ -77,7 +77,7 @@ public:
 #endif	// _DEBUG
 	}
 
-	refract_vs20_Dynamic_Index(  )
+	Refract_vs20_Dynamic_Index(  )
 	{
 		m_nCOMPRESSED_VERTS = 0;
 		m_nSKINNING = 0;
@@ -94,5 +94,5 @@ public:
 	}
 };
 
-#define shaderDynamicTest_refract_vs20 vsh_forgot_to_set_dynamic_COMPRESSED_VERTS + vsh_forgot_to_set_dynamic_SKINNING
+#define shaderDynamicTest_Refract_vs20 vsh_forgot_to_set_dynamic_COMPRESSED_VERTS + vsh_forgot_to_set_dynamic_SKINNING
 

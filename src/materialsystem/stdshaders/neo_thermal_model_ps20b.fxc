@@ -37,11 +37,16 @@ PixelShaderLightInfo cLightInfo[3]			: register( PSREG_LIGHT_INFO_ARRAY );				//
 
 #define g_FlashlightPos					g_FlashlightPos_RimBoost.xyz
 
-sampler BaseTextureSampler		: register( s0 );	// Base map, selfillum in alpha
-sampler ModelGradientSampler	: register( s1 );	// gradient correct for model / view normal dotproduct
-sampler ShadowDepthSampler		: register( s4 );	// Flashlight shadow depth map sampler
-sampler NormalizeRandRotSampler	: register( s5 );	// Normalization / RandomRotation samplers
-sampler FlashlightSampler		: register( s6 );	// Flashlight cookie
+Texture2D BaseTextureSampler		: register( t0 );	// Base map, selfillum in alpha
+SamplerState BaseTextureSampler_s	: register( s0 );
+Texture2D ModelGradientSampler		: register( t1 );	// gradient correct for model / view normal dotproduct
+SamplerState ModelGradientSampler_s	: register( s1 );
+Texture2D ShadowDepthSampler		: register( t4 );	// Flashlight shadow depth map sampler
+SamplerState ShadowDepthSampler_s	: register( s4 );
+Texture2D NormalizeRandRotSampler	: register( t5 );	// Normalization / RandomRotation samplers
+SamplerState NormalizeRandRotSampler_s : register( s5 );
+Texture2D FlashlightSampler			: register( t6 );	// Flashlight cookie
+SamplerState FlashlightSampler_s	: register( s6 );
 
 const float4 g_eyeVectorAndTemperature : register(c0);
 #define g_eyeVector g_eyeVectorAndTemperature.xyz
@@ -56,12 +61,12 @@ struct PS_INPUT
 	float3 projPos		: TEXCOORD4;
 };
 
-float4 main( PS_INPUT i ) : COLOR
+float4 main( PS_INPUT i ) : SV_Target
 {
 	// parts of the model facing the camera directly have a value of 1, and parts facing away have a value of 0
 	float dotProduct = (0.5 * dot(g_eyeVector, i.worldNormal)) + 0.5;
-	
-	float4 baseColor = tex1D( ModelGradientSampler, dotProduct);
+
+	float4 baseColor = ModelGradientSampler.Sample( ModelGradientSampler_s, float2( dotProduct, 0.5 ) );
 	baseColor *= g_temperature;
 	return baseColor;
 }

@@ -9,7 +9,7 @@
 
 #pragma once
 #include "shaderlib/cshader.h"
-class watercheap_ps20b_Static_Index
+class WaterCheap_ps20b_Static_Index
 {
 	unsigned int m_nCONVERT_TO_SRGB : 2;
 	unsigned int m_nMULTITEXTURE : 2;
@@ -87,7 +87,7 @@ public:
 #endif	// _DEBUG
 	}
 
-	watercheap_ps20b_Static_Index(  )
+	WaterCheap_ps20b_Static_Index(  )
 	{
 		m_nCONVERT_TO_SRGB = g_pHardwareConfig->NeedsShaderSRGBConversion();
 		m_nMULTITEXTURE = 0;
@@ -113,10 +113,10 @@ public:
 	}
 };
 
-#define shaderStaticTest_watercheap_ps20b psh_forgot_to_set_static_MULTITEXTURE + psh_forgot_to_set_static_FRESNEL + psh_forgot_to_set_static_BLEND + psh_forgot_to_set_static_REFRACTALPHA + psh_forgot_to_set_static_HDRTYPE + psh_forgot_to_set_static_NORMAL_DECODE_MODE
+#define shaderStaticTest_WaterCheap_ps20b psh_forgot_to_set_static_MULTITEXTURE + psh_forgot_to_set_static_FRESNEL + psh_forgot_to_set_static_BLEND + psh_forgot_to_set_static_REFRACTALPHA + psh_forgot_to_set_static_HDRTYPE + psh_forgot_to_set_static_NORMAL_DECODE_MODE
 
 
-class watercheap_ps20b_Dynamic_Index
+class WaterCheap_ps20b_Dynamic_Index
 {
 	unsigned int m_nHDRENABLED : 2;
 	unsigned int m_nPIXELFOGTYPE : 2;
@@ -143,7 +143,7 @@ public:
 #endif	// _DEBUG
 	}
 
-	watercheap_ps20b_Dynamic_Index(  )
+	WaterCheap_ps20b_Dynamic_Index(  )
 	{
 		m_nHDRENABLED = 0;
 		m_nPIXELFOGTYPE = 0;
@@ -160,5 +160,5 @@ public:
 	}
 };
 
-#define shaderDynamicTest_watercheap_ps20b psh_forgot_to_set_dynamic_HDRENABLED + psh_forgot_to_set_dynamic_PIXELFOGTYPE
+#define shaderDynamicTest_WaterCheap_ps20b psh_forgot_to_set_dynamic_HDRENABLED + psh_forgot_to_set_dynamic_PIXELFOGTYPE
 

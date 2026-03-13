@@ -30,7 +30,8 @@ const float4 const4	:  register( SHADER_SPECIFIC_CONST_4 );
 const float3 cMorphTargetTextureDim		: register( SHADER_SPECIFIC_CONST_6 );
 const float4 cMorphSubrect				: register( SHADER_SPECIFIC_CONST_7 );
 
-sampler2D morphSampler					: register( s0 );
+Texture2D morphSampler					: register( t0 );
+SamplerState morphSampler_s				: register( s0 );
 #endif
 
 
@@ -101,7 +102,7 @@ VS_OUTPUT main( const VS_INPUT v )
 #if !defined( SHADER_MODEL_VS_3_0 ) || !MORPHING
 	ApplyMorph( v.vPosFlex, v.vNormalFlex, vPosition.xyz, vNormal, vTangent.xyz );
 #else
-	ApplyMorph( morphSampler, cMorphTargetTextureDim, cMorphSubrect, v.vVertexID, float3( 0, 0, 0 ),
+	ApplyMorph( morphSampler, morphSampler_s, cMorphTargetTextureDim, cMorphSubrect, v.vVertexID, float3( 0, 0, 0 ),
 		vPosition.xyz, vNormal, vTangent.xyz );
 #endif
 

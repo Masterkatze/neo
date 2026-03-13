@@ -1,10 +1,14 @@
 #define HDRTYPE HDR_TYPE_NONE
 #include "common_ps_fxc.h"
 
-sampler FBSampler		: register(s0);
-sampler BlurSampler		: register(s1);
-sampler NVSampler		: register(s2);
-sampler NoiseSampler	: register(s3);
+Texture2D  FBSampler		: register( t0 );
+SamplerState FBSampler_s	: register( s0 );
+Texture2D  BlurSampler		: register( t1 );
+SamplerState BlurSampler_s	: register( s1 );
+Texture2D  NVSampler		: register( t2 );
+SamplerState NVSampler_s	: register( s2 );
+Texture2D  NoiseSampler		: register( t3 );
+SamplerState NoiseSampler_s	: register( s3 );
 
 const float2 g_noiseTransform	: register(c0);
 
@@ -13,18 +17,18 @@ struct PS_INPUT
 	float2 texCoord				: TEXCOORD0;
 };
 
-float4 main( const PS_INPUT i ) : COLOR
+float4 main( const PS_INPUT i ) : SV_Target
 {
-	float4 fbColor = tex2D(FBSampler, i.texCoord);
-	float4 blurColor = float4(0,0,0,0);//tex2D(BlurSampler, i.texCoord);
-	float4 noiseColor = tex2D(NoiseSampler, i.texCoord + g_noiseTransform);
-	
+	float4 fbColor = FBSampler.Sample(FBSampler_s, i.texCoord);
+	float4 blurColor = float4(0,0,0,0);//BlurSampler.Sample(BlurSampler_s, i.texCoord);
+	float4 noiseColor = NoiseSampler.Sample(NoiseSampler_s, i.texCoord + g_noiseTransform);
+
 	float2 thing = i.texCoord - 0.5;
 	fbColor.w = dot(thing.xy, -thing.xy) + 1;
 	fbColor.w = pow(fbColor.w, 3);
-	
+
 	blurColor.xyz *= 90 * fbColor.w;
-	
+
 	fbColor.xyz = mad(fbColor.xyz, noiseColor.xyz, blurColor);
 	fbColor.w = rsqrt(fbColor.x);
 	fbColor.x = rcp(fbColor.w);
@@ -32,8 +36,8 @@ float4 main( const PS_INPUT i ) : COLOR
 	fbColor.w = rsqrt(fbColor.z);
 	fbColor.y = rcp(noiseColor.w);
 	fbColor.z = rcp(fbColor.w);
-	
+
 	const float3 luminanceWeights = float3(0.3, 0.59, 0.11);
 	fbColor.x = dot(fbColor.xyz, luminanceWeights);
-	return tex1D(NVSampler, fbColor.x);
+	return NVSampler.Sample(NVSampler_s, float2(fbColor.x, 0.5));
 }

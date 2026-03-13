@@ -1,4 +1,4 @@
-//========= Copyright � 1996-2006, Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2006, Valve Corporation, All rights reserved. ============//
 
 // STATIC: "INTRO"				"0..1"
 // STATIC: "HALFLAMBERT"		"0..1"
@@ -41,7 +41,8 @@ const float4 g_vFlashlightMatrixRow4  :  register( SHADER_SPECIFIC_CONST_9 );
 const float3 cMorphTargetTextureDim		: register( SHADER_SPECIFIC_CONST_10 );
 const float4 cMorphSubrect				: register( SHADER_SPECIFIC_CONST_11 );
 
-sampler2D morphSampler					: register( s0 );
+Texture2D morphSampler					: register( t0 );
+SamplerState morphSampler_s				: register( s0 );
 #endif
 
 struct VS_INPUT
@@ -53,7 +54,7 @@ struct VS_INPUT
 
 	// Position deltas
 	float3 vPosFlex				: POSITION1;
-	
+
 #ifdef SHADER_MODEL_VS_3_0
 	float vVertexID				: POSITION2;
 #endif
@@ -61,10 +62,7 @@ struct VS_INPUT
 
 struct VS_OUTPUT
 {
-    float4 projPos							: POSITION;		// Projection-space position
-#if !defined( _X360 )
-	float  fog								: FOG;			// Fixed-function fog factor
-#endif
+    float4 projPos							: SV_Position;	// Projection-space position
 	float4 vAmbientOcclUv_fallbackCorneaUv	: TEXCOORD0;	// Base texture coordinate
 	float4 cVertexLight						: TEXCOORD1;	// Vertex-lit color (Note: w is used for flashlight pass)
 	float4 vTangentViewVector				: TEXCOORD2;	// Tangent view vector (Note: w is used for flashlight pass)
@@ -90,7 +88,7 @@ VS_OUTPUT main( const VS_INPUT v )
 #if !defined( SHADER_MODEL_VS_3_0 ) || !MORPHING
 	ApplyMorph( v.vPosFlex, vPosition.xyz );
 #else
-	ApplyMorph( morphSampler, cMorphTargetTextureDim, cMorphSubrect, v.vVertexID, float3( 0, 0, 0 ), vPosition.xyz );
+	ApplyMorph( morphSampler, morphSampler_s, cMorphTargetTextureDim, cMorphSubrect, v.vVertexID, float3( 0, 0, 0 ), vPosition.xyz );
 #endif
 
 	// Transform the position
@@ -114,13 +112,8 @@ VS_OUTPUT main( const VS_INPUT v )
 	o.projPos = vProjPos;
 	vProjPos.z = dot( float4( vWorldPosition, 1.0f ), cViewProjZ );
 
-	
-	o.vWorldPosition_ProjPosZ.w = vProjPos.z;
 
-#if !defined( _X360 )
-	// Set fixed-function fog factor
-	o.fog = CalcFog( vWorldPosition, vProjPos, g_iFogType );
-#endif
+	o.vWorldPosition_ProjPosZ.w = vProjPos.z;
 
 	// Normal = (Pos - Eye origin)
 	float3 vWorldNormal = normalize( vWorldPosition.xyz - g_cEyeOrigin.xyz );

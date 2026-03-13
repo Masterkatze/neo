@@ -55,12 +55,18 @@ const float4x4 g_FlashlightWorldToTexture		: register( c16 );
 
 const float4 g_FlashlightAttenuationFactors		: register( c20 );
 
-sampler BaseTextureSampler			: register( s0 );
-sampler LightmapSampler				: register( s1 );
-sampler FlashlightSampler			: register( s2 );
-sampler DetailSampler				: register( s3 );
-sampler BumpmapSampler				: register( s4 );
-sampler NormalizeSampler			: register( s6 );
+Texture2D BaseTextureSampler		: register( t0 );
+SamplerState BaseTextureSampler_s	: register( s0 );
+Texture2D LightmapSampler			: register( t1 );
+SamplerState LightmapSampler_s		: register( s1 );
+Texture2D FlashlightSampler			: register( t2 );
+SamplerState FlashlightSampler_s	: register( s2 );
+Texture2D DetailSampler				: register( t3 );
+SamplerState DetailSampler_s		: register( s3 );
+Texture2D BumpmapSampler			: register( t4 );
+SamplerState BumpmapSampler_s		: register( s4 );
+Texture2D NormalizeSampler			: register( t6 );
+SamplerState NormalizeSampler_s		: register( s6 );
 
 struct PS_INPUT
 {
@@ -76,7 +82,7 @@ struct PS_INPUT
 };
 
 
-float4 main( PS_INPUT i ) : COLOR
+float4 main( PS_INPUT i ) : SV_Target
 {
 	bool bDetailTexture = DETAILTEXTURE ? true : false;
 	bool bBumpmap = BUMPMAP ? true : false;
@@ -97,17 +103,17 @@ float4 main( PS_INPUT i ) : COLOR
 		ComputeBumpedLightmapCoordinates( i.lightmapTexCoord1And2, i.lightmapTexCoord3.xy,
 			bumpCoord1, bumpCoord2, bumpCoord3 );
 		
-		HALF4 lightmapSample1 = tex2D( LightmapSampler, bumpCoord1 );
+		HALF4 lightmapSample1 = LightmapSampler.Sample( LightmapSampler_s, bumpCoord1 );
 		lightmapColor1 = lightmapSample1.rgb;
-		lightmapColor2 = tex2D( LightmapSampler, bumpCoord2 );
-		lightmapColor3 = tex2D( LightmapSampler, bumpCoord3 );
+		lightmapColor2 = LightmapSampler.Sample( LightmapSampler_s, bumpCoord2 );
+		lightmapColor3 = LightmapSampler.Sample( LightmapSampler_s, bumpCoord3 );
 	}
 	else
 	{
 		if( !bFlashlight )
 		{
 			HALF2 bumpCoord1 = ComputeLightmapCoordinates( i.lightmapTexCoord1And2, i.lightmapTexCoord3.xy );
-			HALF4 lightmapSample1 = tex2D( LightmapSampler, bumpCoord1 );
+			HALF4 lightmapSample1 = LightmapSampler.Sample( LightmapSampler_s, bumpCoord1 );
 			lightmapColor1 = lightmapSample1.rgb;
 		}
 	}
@@ -115,11 +121,11 @@ float4 main( PS_INPUT i ) : COLOR
 	HALF4 detailColor = HALF4( 1.0f, 1.0f, 1.0f, 1.0f );
 	if( bDetailTexture )
 	{
-		detailColor = tex2D( DetailSampler, i.detailOrBumpTexCoord.xy );
+		detailColor = DetailSampler.Sample( DetailSampler_s, i.detailOrBumpTexCoord.xy );
 	}
 
 	HALF4 baseColor = HALF4( 1.0f, 1.0f, 1.0f, 1.0f );
-	baseColor = tex2D( BaseTextureSampler, i.baseTexCoord );
+	baseColor = BaseTextureSampler.Sample( BaseTextureSampler_s, i.baseTexCoord );
 	if ( bDetailAlphaMaskBaseTexture )
 	{
 		// This is what WorldTwoTextureBlend_DX6 does.
@@ -135,7 +141,7 @@ float4 main( PS_INPUT i ) : COLOR
 	if( bBumpmap )
 	{
 		HALF3 normalTexel;
-		normalTexel = tex2D( BumpmapSampler, i.detailOrBumpTexCoord.xy );
+		normalTexel = BumpmapSampler.Sample( BumpmapSampler_s, i.detailOrBumpTexCoord.xy );
 		normal = 2.0 * normalTexel - 1.0;
 	}
 
@@ -168,9 +174,10 @@ float4 main( PS_INPUT i ) : COLOR
 		float4 flashlightSpacePosition = mul( float4( i.worldPos_projPosZ.xyz, 1.0f ), g_FlashlightWorldToTexture );
 
 		diffuseLighting = DoFlashlight( g_FlashlightPos, i.worldPos_projPosZ.xyz, flashlightSpacePosition,
-			worldSpaceNormal, g_FlashlightAttenuationFactors.xyz, 
-			g_FlashlightAttenuationFactors.w, FlashlightSampler, FlashlightSampler, NormalizeSampler,
-			nShadowSampleLevel,	bDoShadows, false, float2(0, 0), false );
+			worldSpaceNormal, g_FlashlightAttenuationFactors.xyz,
+			g_FlashlightAttenuationFactors.w, FlashlightSampler, FlashlightSampler_s,
+			FlashlightSampler, FlashlightSampler_s, NormalizeSampler, NormalizeSampler_s,
+			nShadowSampleLevel, bDoShadows, false, float2(0, 0), false );
 	}
 	else
 	{

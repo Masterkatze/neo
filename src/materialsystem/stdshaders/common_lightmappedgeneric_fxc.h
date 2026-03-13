@@ -88,7 +88,7 @@ void GetBaseTextureAndNormal( sampler base, sampler base2, sampler bump, bool bB
 
 #else // PC
 
-void GetBaseTextureAndNormal( sampler base, sampler base2, sampler bump, bool bBase2, bool bBump, float3 coords, float3 vWeights,
+void GetBaseTextureAndNormal( Texture2D base, SamplerState base_s, Texture2D base2, SamplerState base2_s, Texture2D bump, SamplerState bump_s, bool bBase2, bool bBump, float3 coords, float3 vWeights,
 							 out float4 vResultBase, out float4 vResultBase2, out float4 vResultBump )
 {
 	vResultBase = 0;
@@ -102,46 +102,46 @@ void GetBaseTextureAndNormal( sampler base, sampler base2, sampler bump, bool bB
 
 #if SEAMLESS
 
-	vResultBase  += vWeights.x * tex2D( base, coords.zy );
+	vResultBase  += vWeights.x * base.Sample( base_s, coords.zy );
 	if ( bBase2 )
 	{
-		vResultBase2 += vWeights.x * tex2D( base2, coords.zy );
+		vResultBase2 += vWeights.x * base2.Sample( base2_s, coords.zy );
 	}
 	if ( bBump )
 	{
-		vResultBump  += vWeights.x * tex2D( bump, coords.zy );
+		vResultBump  += vWeights.x * bump.Sample( bump_s, coords.zy );
 	}
 
-	vResultBase  += vWeights.y * tex2D( base, coords.xz );
+	vResultBase  += vWeights.y * base.Sample( base_s, coords.xz );
 	if ( bBase2 )
 	{
-		vResultBase2 += vWeights.y * tex2D( base2, coords.xz );
+		vResultBase2 += vWeights.y * base2.Sample( base2_s, coords.xz );
 	}
 	if ( bBump )
 	{
-		vResultBump  += vWeights.y * tex2D( bump, coords.xz );
+		vResultBump  += vWeights.y * bump.Sample( bump_s, coords.xz );
 	}
 
-	vResultBase  += vWeights.z * tex2D( base, coords.xy );
+	vResultBase  += vWeights.z * base.Sample( base_s, coords.xy );
 	if ( bBase2 )
 	{
-		vResultBase2 += vWeights.z * tex2D( base2, coords.xy );
+		vResultBase2 += vWeights.z * base2.Sample( base2_s, coords.xy );
 	}
 	if ( bBump )
 	{
-		vResultBump  += vWeights.z * tex2D( bump, coords.xy );
+		vResultBump  += vWeights.z * bump.Sample( bump_s, coords.xy );
 	}
 
 #else  // not seamless
 
-	vResultBase  = tex2D( base, coords.xy );
+	vResultBase  = base.Sample( base_s, coords.xy );
 	if ( bBase2 )
 	{
-		vResultBase2 = tex2D( base2, coords.xy );
+		vResultBase2 = base2.Sample( base2_s, coords.xy );
 	}
 	if ( bBump )
 	{
-		vResultBump  = tex2D( bump, coords.xy );
+		vResultBump  = bump.Sample( bump_s, coords.xy );
 	}
 #endif
 
@@ -192,7 +192,7 @@ float h1(float a) {
 #define BICUBIC_LIGHTMAP 0
 #endif
 
-float3 LightMapSample( sampler LightmapSampler, float2 vTexCoord )
+float3 LightMapSample( Texture2D LightmapSampler, SamplerState LightmapSampler_s, float2 vTexCoord )
 {
 #	if ( !defined( _X360 ) || !defined( USE_32BIT_LIGHTMAPS_ON_360 ) )
 	{
@@ -220,11 +220,11 @@ float3 LightMapSample( sampler LightmapSampler, float2 vTexCoord )
 		float2 p2 = ( float2( iuv.x + h0x, iuv.y + h1y ) - float2( 0.5f, 0.5f ) ) * vTexelSize;
 		float2 p3 = ( float2( iuv.x + h1x, iuv.y + h1y ) - float2( 0.5f, 0.5f ) ) * vTexelSize;
 
-		float3 sample = 
-			( g0( fuv.y ) * ( g0x * tex2D( LightmapSampler, p0 ) + g1x * tex2D( LightmapSampler, p1 ) ) ) +
-			( g1( fuv.y ) * ( g0x * tex2D( LightmapSampler, p2 ) + g1x * tex2D( LightmapSampler, p3 ) ) );
+		float3 sample =
+			( g0( fuv.y ) * ( g0x * LightmapSampler.Sample( LightmapSampler_s, p0 ) + g1x * LightmapSampler.Sample( LightmapSampler_s, p1 ) ) ) +
+			( g1( fuv.y ) * ( g0x * LightmapSampler.Sample( LightmapSampler_s, p2 ) + g1x * LightmapSampler.Sample( LightmapSampler_s, p3 ) ) );
 #else
-		float3 sample = tex2D( LightmapSampler, vTexCoord );
+		float3 sample = LightmapSampler.Sample( LightmapSampler_s, vTexCoord );
 #endif
 
 		return sample;
@@ -244,7 +244,7 @@ float3 LightMapSample( sampler LightmapSampler, float2 vTexCoord )
 			float4 samples_1;
 			float4 samples_2;
 			float4 samples_3;
-			
+
 			asm {
 				tfetch2D samples_0, vTexCoord.xy, LightmapSampler, OffsetX = -0.5, OffsetY = -0.5, MinFilter=point, MagFilter=point, MipFilter=keep, UseComputedLOD=false
 				tfetch2D samples_1, vTexCoord.xy, LightmapSampler, OffsetX =  0.5, OffsetY = -0.5, MinFilter=point, MagFilter=point, MipFilter=keep, UseComputedLOD=false
@@ -261,7 +261,7 @@ float3 LightMapSample( sampler LightmapSampler, float2 vTexCoord )
 			result.rgb += samples_1.rgb * (samples_1.a * Weights.y);
 			result.rgb += samples_2.rgb * (samples_2.a * Weights.z);
 			result.rgb += samples_3.rgb * (samples_3.a * Weights.w);
-		
+
 			return result;
 		}
 #		endif

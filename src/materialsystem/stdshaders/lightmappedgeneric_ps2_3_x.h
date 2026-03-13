@@ -106,47 +106,64 @@ const float3 g_CubemapPos					: register( c21 );
 const float4x4 g_ObbMatrix					: register( c22 ); // Through c25
 #endif
 
-sampler BaseTextureSampler		: register( s0 );
-sampler LightmapSampler			: register( s1 );
-sampler EnvmapSampler			: register( s2 );
+Texture2D BaseTextureSampler		: register( t0 );
+SamplerState BaseTextureSampler_s	: register( s0 );
+Texture2D LightmapSampler			: register( t1 );
+SamplerState LightmapSampler_s		: register( s1 );
+TextureCube EnvmapSampler			: register( t2 );
+SamplerState EnvmapSampler_s		: register( s2 );
 #if FANCY_BLENDING
-sampler BlendModulationSampler	: register( s3 );
+Texture2D BlendModulationSampler	: register( t3 );
+SamplerState BlendModulationSampler_s : register( s3 );
 #endif
 
 #if DETAILTEXTURE
-sampler DetailSampler			: register( s12 );
+Texture2D DetailSampler				: register( t12 );
+SamplerState DetailSampler_s		: register( s12 );
 #endif
 
-sampler BumpmapSampler			: register( s4 );
+Texture2D BumpmapSampler			: register( t4 );
+SamplerState BumpmapSampler_s		: register( s4 );
 #if NORMAL_DECODE_MODE == NORM_DECODE_ATI2N_ALPHA
-sampler AlphaMapSampler		: register( s9 );	// alpha
+Texture2D AlphaMapSampler			: register( t9 );
+SamplerState AlphaMapSampler_s		: register( s9 );
 #else
-#define AlphaMapSampler		BumpmapSampler
+#define AlphaMapSampler				BumpmapSampler
+#define AlphaMapSampler_s			BumpmapSampler_s
 #endif
 
 #if BUMPMAP2 == 1
-sampler BumpmapSampler2			: register( s5 );
+Texture2D BumpmapSampler2			: register( t5 );
+SamplerState BumpmapSampler2_s		: register( s5 );
 #if NORMAL_DECODE_MODE == NORM_DECODE_ATI2N_ALPHA
-sampler AlphaMapSampler2		: register( s10 );	// alpha
+Texture2D AlphaMapSampler2			: register( t10 );
+SamplerState AlphaMapSampler2_s		: register( s10 );
 #else
-#define AlphaMapSampler2		BumpmapSampler2
+#define AlphaMapSampler2			BumpmapSampler2
+#define AlphaMapSampler2_s			BumpmapSampler2_s
 #endif
 #else
-sampler EnvmapMaskSampler		: register( s5 );
+Texture2D EnvmapMaskSampler			: register( t5 );
+SamplerState EnvmapMaskSampler_s	: register( s5 );
 #endif
 
 
 #if WARPLIGHTING
-sampler WarpLightingSampler		: register( s6 );
+Texture2D WarpLightingSampler		: register( t6 );
+SamplerState WarpLightingSampler_s	: register( s6 );
 #endif
-sampler BaseTextureSampler2		: register( s7 );
+Texture2D BaseTextureSampler2		: register( t7 );
+SamplerState BaseTextureSampler2_s	: register( s7 );
 
 #if BUMPMASK == 1
-sampler BumpMaskSampler			: register( s8 );
+Texture2D BumpMaskSampler			: register( t8 );
+SamplerState BumpMaskSampler_s		: register( s8 );
 #if NORMALMASK_DECODE_MODE == NORM_DECODE_ATI2N_ALPHA
-sampler AlphaMaskSampler		: register( s11 );	// alpha
+Texture2D AlphaMaskSampler			: register( t11 );
+SamplerState AlphaMaskSampler_s		: register( s11 );
 #else
-#define AlphaMaskSampler		BumpMaskSampler
+#define AlphaMaskSampler			BumpMaskSampler
+#define AlphaMaskSampler_s			BumpMaskSampler_s
 #endif
 #endif
 
@@ -187,9 +204,9 @@ struct PS_INPUT
 };
 
 #if LIGHTING_PREVIEW == 2
-LPREVIEW_PS_OUT main( PS_INPUT i ) : COLOR
+LPREVIEW_PS_OUT main( PS_INPUT i )
 #else
-HALF4 main( PS_INPUT i ) : COLOR
+float4 main( PS_INPUT i ) : SV_Target
 #endif
 {
 	bool bBaseTexture2 = BASETEXTURE2 ? true : false;
@@ -215,7 +232,7 @@ HALF4 main( PS_INPUT i ) : COLOR
 	baseTexCoords.xy = i.baseTexCoord.xy;
 #endif
 
-	GetBaseTextureAndNormal( BaseTextureSampler, BaseTextureSampler2, BumpmapSampler, bBaseTexture2, bBumpmap || bNormalMapAlphaEnvmapMask, 
+	GetBaseTextureAndNormal( BaseTextureSampler, BaseTextureSampler_s, BaseTextureSampler2, BaseTextureSampler2_s, BumpmapSampler, BumpmapSampler_s, bBaseTexture2, bBumpmap || bNormalMapAlphaEnvmapMask,
 		baseTexCoords, i.vertexColor.rgb, baseColor, baseColor2, vNormal );
 
 #if BUMPMAP == 1	// not ssbump
@@ -234,14 +251,14 @@ HALF4 main( PS_INPUT i ) : COLOR
 		ComputeBumpedLightmapCoordinates( i.lightmapTexCoord1And2, i.lightmapTexCoord3.xy,
 			bumpCoord1, bumpCoord2, bumpCoord3 );
 		
-		lightmapColor1 = LightMapSample( LightmapSampler, bumpCoord1 );
-		lightmapColor2 = LightMapSample( LightmapSampler, bumpCoord2 );
-		lightmapColor3 = LightMapSample( LightmapSampler, bumpCoord3 );
+		lightmapColor1 = LightMapSample( LightmapSampler, LightmapSampler_s, bumpCoord1 );
+		lightmapColor2 = LightMapSample( LightmapSampler, LightmapSampler_s, bumpCoord2 );
+		lightmapColor3 = LightMapSample( LightmapSampler, LightmapSampler_s, bumpCoord3 );
 	}
 	else
 	{
 		HALF2 bumpCoord1 = ComputeLightmapCoordinates( i.lightmapTexCoord1And2, i.lightmapTexCoord3.xy );
-		lightmapColor1 = LightMapSample( LightmapSampler, bumpCoord1 );
+		lightmapColor1 = LightMapSample( LightmapSampler, LightmapSampler_s, bumpCoord1 );
 	}
 #endif
 
@@ -272,9 +289,9 @@ HALF4 main( PS_INPUT i ) : COLOR
 #if DETAILTEXTURE
 
 #if SHADER_MODEL_PS_2_0
-	detailColor = tex2D( DetailSampler, detailTexCoord );
+	detailColor = DetailSampler.Sample( DetailSampler_s, detailTexCoord );
 #else
-	detailColor = float4( g_DetailTint, 1.0f ) * tex2D( DetailSampler, detailTexCoord );
+	detailColor = float4( g_DetailTint, 1.0f ) * DetailSampler.Sample( DetailSampler_s, detailTexCoord );
 #endif
 
 #endif
@@ -321,7 +338,7 @@ HALF4 main( PS_INPUT i ) : COLOR
 	if( bBaseTexture2 )
 	{
 #if (SELFILLUM == 0) && (PIXELFOGTYPE != PIXEL_FOG_TYPE_HEIGHT) && (FANCY_BLENDING)
-		float4 modt=tex2D(BlendModulationSampler,i.lightmapTexCoord3.zw);
+		float4 modt=BlendModulationSampler.Sample(BlendModulationSampler_s,i.lightmapTexCoord3.zw);
 #if MASKEDBLENDING
 		// FXC is unable to optimize this, despite blendfactor=0.5 above
 		//float minb=modt.g-modt.r;
@@ -357,9 +374,9 @@ HALF4 main( PS_INPUT i ) : COLOR
 
 			HALF4 vNormal2;
 			if ( BUMPMAP == 2 )
-				vNormal2 = tex2D( BumpmapSampler2, b2TexCoord );
+				vNormal2 = BumpmapSampler2.Sample( BumpmapSampler2_s, b2TexCoord );
 			else
-				vNormal2 = DecompressNormal( BumpmapSampler2, b2TexCoord, NORMAL_DECODE_MODE, AlphaMapSampler2 );		// Bump 2 coords
+				vNormal2 = DecompressNormal( BumpmapSampler2, BumpmapSampler2_s, b2TexCoord, NORMAL_DECODE_MODE, AlphaMapSampler2, AlphaMapSampler2_s );		// Bump 2 coords
 
 			if( bBaseTexture2NoEnvmap )
 			{
@@ -367,12 +384,12 @@ HALF4 main( PS_INPUT i ) : COLOR
 			}
 
 	#if ( BUMPMASK == 1 )
-			float3 vNormal1 = DecompressNormal( BumpmapSampler, i.detailOrBumpAndEnvmapMaskTexCoord.xy, NORMALMASK_DECODE_MODE, AlphaMapSampler );
+			float3 vNormal1 = DecompressNormal( BumpmapSampler, BumpmapSampler_s, i.detailOrBumpAndEnvmapMaskTexCoord.xy, NORMALMASK_DECODE_MODE, AlphaMapSampler, AlphaMapSampler_s );
 
 			vNormal.xyz = normalize( vNormal1.xyz + vNormal2.xyz );
 
 			// Third normal map...same coords as base
-			vNormalMask = DecompressNormal( BumpMaskSampler, i.baseTexCoord.xy, NORMALMASK_DECODE_MODE, AlphaMaskSampler );
+			vNormalMask = DecompressNormal( BumpMaskSampler, BumpMaskSampler_s, i.baseTexCoord.xy, NORMALMASK_DECODE_MODE, AlphaMaskSampler, AlphaMaskSampler_s );
 
 			vNormal.xyz = lerp( vNormalMask.xyz, vNormal.xyz, vNormalMask.a );		// Mask out normals from vNormal
 			specularFactor = vNormalMask.a;
@@ -405,7 +422,7 @@ HALF4 main( PS_INPUT i ) : COLOR
 #if ( BUMPMAP2 == 0 )
 	if( bEnvmapMask )
 	{
-		specularFactor *= tex2D( EnvmapMaskSampler, envmapMaskTexCoord ).xyz;	
+		specularFactor *= EnvmapMaskSampler.Sample( EnvmapMaskSampler_s, envmapMaskTexCoord ).xyz;
 	}
 #endif
 
@@ -476,7 +493,7 @@ HALF4 main( PS_INPUT i ) : COLOR
 	// FIXME: 8-bit lookup textures like this need a "nice filtering" VTF option, which converts
 	//        them to 16-bit on load or does filtering in the shader (since most hardware - 360
 	//        included - interpolates 8-bit textures at 8-bit precision, which causes banding)
-	diffuseLighting *= 2.0*tex2D(WarpLightingSampler,float2(len,0));
+	diffuseLighting *= 2.0*WarpLightingSampler.Sample(WarpLightingSampler_s,float2(len,0));
 #endif
 
 #if CUBEMAP || LIGHTING_PREVIEW || ( defined( _X360 ) && FLASHLIGHT )
@@ -530,7 +547,7 @@ HALF4 main( PS_INPUT i ) : COLOR
 		float3 reflectVect = CalcReflectionVectorUnnormalized( worldSpaceNormal, worldVertToEyeVector );
 
 		// Calc Fresnel factor
-		half3 eyeVect = normalize(worldVertToEyeVector);
+		float3 eyeVect = normalize(worldVertToEyeVector);
 		HALF fresnel = 1.0 - dot( worldSpaceNormal, eyeVect );
 		fresnel = pow( fresnel, 5.0 );
 		fresnel = fresnel * g_OneMinusFresnelReflection + g_FresnelReflection;
@@ -551,7 +568,7 @@ HALF4 main( PS_INPUT i ) : COLOR
 		reflectVect = intersectPositionWS - g_CubemapPos;
 #endif // PARALLAXCORRECT
 		
-		specularLighting = ENV_MAP_SCALE * texCUBE( EnvmapSampler, reflectVect );
+		specularLighting = ENV_MAP_SCALE * EnvmapSampler.Sample( EnvmapSampler_s, reflectVect );
 		specularLighting *= specularFactor;
 								   
 		specularLighting *= g_EnvmapTint;

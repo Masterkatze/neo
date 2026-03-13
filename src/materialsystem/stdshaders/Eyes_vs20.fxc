@@ -1,10 +1,10 @@
-//======= Copyright � 1996-2006, Valve Corporation, All rights reserved. ======
-// $SHADER_SPECIFIC_CONST_0	 = eyeball origin			
-// $SHADER_SPECIFIC_CONST_1	 = eyeball up * 0.5			
-// $SHADER_SPECIFIC_CONST_2	 = iris projection U		
-// $SHADER_SPECIFIC_CONST_3	 = iris projection V		
-// $SHADER_SPECIFIC_CONST_4	 = glint projection U		
-// $SHADER_SPECIFIC_CONST_5	 = glint projection V		
+//======= Copyright © 1996-2006, Valve Corporation, All rights reserved. ======
+// $SHADER_SPECIFIC_CONST_0	 = eyeball origin
+// $SHADER_SPECIFIC_CONST_1	 = eyeball up * 0.5
+// $SHADER_SPECIFIC_CONST_2	 = iris projection U
+// $SHADER_SPECIFIC_CONST_3	 = iris projection V
+// $SHADER_SPECIFIC_CONST_4	 = glint projection U
+// $SHADER_SPECIFIC_CONST_5	 = glint projection V
 //=============================================================================
 
 //	STATIC: "INTRO"						"0..1"
@@ -46,7 +46,8 @@ const float4 const4							:  register( SHADER_SPECIFIC_CONST_6 );
 const float3 cMorphTargetTextureDim			: register( SHADER_SPECIFIC_CONST_7 );
 const float4 cMorphSubrect					: register( SHADER_SPECIFIC_CONST_8 );
 
-sampler2D morphSampler						: register( s0 );
+Texture2D morphSampler						: register( t0 );
+SamplerState morphSampler_s					: register( s0 );
 #endif
 
 struct VS_INPUT
@@ -64,17 +65,14 @@ struct VS_INPUT
 
 struct VS_OUTPUT
 {
-    float4 projPos				: POSITION;			// Projection-space position
-#if !defined( _X360 )
-	float  fog					: FOG;				// Fixed-function fog factor
-#endif
+    float4 projPos				: SV_Position;		// Projection-space position
 	float2 baseTC				: TEXCOORD0;		// Base texture coordinate
 	float2 irisTC				: TEXCOORD1;		// Iris texture coordinates
 	float2 glintTC				: TEXCOORD2;		// Glint texture coordinates
 	float3 vColor				: TEXCOORD3;		// Vertex-lit color
-	
+
 	float4 worldPos_projPosZ	: TEXCOORD7;		// Necessary for pixel fog
-	
+
 };
 
 VS_OUTPUT main( const VS_INPUT v )
@@ -90,13 +88,13 @@ VS_OUTPUT main( const VS_INPUT v )
 #if !defined( SHADER_MODEL_VS_3_0 ) || !MORPHING
 	ApplyMorph( v.vPosFlex, vPosition.xyz );
 #else
-	ApplyMorph( morphSampler, cMorphTargetTextureDim, cMorphSubrect, v.vVertexID, dummy, vPosition.xyz );
+	ApplyMorph( morphSampler, morphSampler_s, cMorphTargetTextureDim, cMorphSubrect, v.vVertexID, dummy, vPosition.xyz );
 #endif
 
 	// Transform the position and dummy normal (not doing the dummy normal causes invariance issues with the flashlight!)
 	float3 worldNormal, worldPos;
-	SkinPositionAndNormal( 
-		g_bSkinning, 
+	SkinPositionAndNormal(
+		g_bSkinning,
 		vPosition, dummy,
 		v.vBoneWeights, v.vBoneIndices,
 		worldPos, worldNormal );
@@ -110,11 +108,6 @@ VS_OUTPUT main( const VS_INPUT v )
 	o.projPos = vProjPos;
 	vProjPos.z = dot( float4( worldPos, 1 ), cViewProjZ );
 	o.worldPos_projPosZ = float4( worldPos.xyz, vProjPos.z );
-
-#if !defined( _X360 )
-	// Set fixed-function fog factor
-	o.fog = CalcFog( worldPos, vProjPos, g_FogType );
-#endif
 
 	// Normal = (Pos - Eye origin) - just step on dummy normal created above
 	worldNormal = worldPos - cEyeOrigin;

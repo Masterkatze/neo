@@ -29,7 +29,8 @@ const float4x4 g_FlashlightWorldToTexture :  register( SHADER_SPECIFIC_CONST_6 )
 const float3 cMorphTargetTextureDim			: register( SHADER_SPECIFIC_CONST_10 );
 const float4 cMorphSubrect					: register( SHADER_SPECIFIC_CONST_11 );
 
-sampler2D morphSampler : register( s0 );
+Texture2D morphSampler : register( t0 );
+SamplerState morphSampler_s : register( s0 );
 #endif
 
 
@@ -50,9 +51,9 @@ struct VS_INPUT
 	float4 vTexCoord1		: TEXCOORD1;
 	float4 vTexCoord2		: TEXCOORD2;
 	float4 vTexCoord3		: TEXCOORD3;
-	float3 vTangentS		: TANGENT;
-	float3 vTangentT		: BINORMAL;
-	float4 vUserData		: TANGENT;
+	float3 vTangentS		: TANGENT0;
+	float3 vTangentT		: BINORMAL0;
+	float4 vUserData		: TANGENT1;
 
 	// Position and normal/tangent deltas
 	float3 vPosFlex			: POSITION1;
@@ -69,10 +70,7 @@ struct VS_INPUT
 struct VS_OUTPUT
 {
 	// Stuff that isn't seen by the pixel shader
-	float4 projPos												: POSITION;	
-#if !defined( _X360 )
-	float  fog													: FOG;
-#endif
+	float4 projPos												: SV_Position;
 	// Stuff that is seen by the pixel shader
 
 	float4 baseTexCoord2_tangentSpaceVertToEyeVectorXY			: TEXCOORD0;
@@ -110,7 +108,7 @@ VS_OUTPUT main( const VS_INPUT v )
 #if !defined( SHADER_MODEL_VS_3_0 ) || !MORPHING
 	ApplyMorph( v.vPosFlex, v.vNormalFlex, vPosition.xyz, vNormal, vTangent.xyz );
 #else
-	ApplyMorph( morphSampler, cMorphTargetTextureDim, cMorphSubrect, 
+	ApplyMorph( morphSampler, morphSampler_s, cMorphTargetTextureDim, cMorphSubrect,
 		v.vVertexID, v.vTexCoord2, vPosition.xyz, vNormal, vTangent.xyz );
 #endif
 
@@ -146,9 +144,6 @@ VS_OUTPUT main( const VS_INPUT v )
 #endif
 
 	o.fogFactorW = CalcFog( worldPos, vProjPos, g_FogType );
-#if !defined( _X360 )
-	o.fog = o.fogFactorW;
-#endif
 
  	// Needed for water fog alpha and diffuse lighting
 	// FIXME: we shouldn't have to compute this all the time.
